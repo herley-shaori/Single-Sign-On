@@ -47,41 +47,22 @@ cd terraform
 
 ## Setup credentials di laptop
 
-### 1. AWS — via AWS IAM Identity Center (SSO)
+### 1. AWS — via profile `pribadi`
 
-Pakai `aws configure sso` (tidak perlu access key statis).
+Kedua environment (`dev` & `prod`) memakai AWS CLI profile yang sama: **`pribadi`**, yang sudah di-setup di laptop ini (lihat `~/.aws/credentials` / `~/.aws/config`).
 
-```bash
-aws configure sso
-```
-
-Isi prompt-nya seperti berikut (sesuaikan dengan org-mu):
-
-| Field | Contoh |
-|---|---|
-| SSO session name | `my-org` |
-| SSO start URL | `https://<org>.awsapps.com/start` |
-| SSO region | `ap-southeast-3` (atau region SSO yang dipakai org) |
-| SSO registration scopes | `sso:account:access` (default) |
-| CLI default client Region | `ap-southeast-3` |
-| CLI default output format | `json` |
-| **CLI profile name** | `sso-dev`  ← **harus cocok** dengan `aws_profile` di `terraform.tfvars` |
-
-Ulangi untuk profile `sso-prod` (pilih akun PROD pas prompt account selection).
-
-Login & verifikasi:
+Verifikasi:
 
 ```bash
-aws sso login --profile sso-dev
-aws sts get-caller-identity --profile sso-dev
-
-aws sso login --profile sso-prod
-aws sts get-caller-identity --profile sso-prod
+aws sts get-caller-identity --profile pribadi
 ```
 
-Setelah ini, `./apply.sh aws dev` langsung jalan karena provider AWS membaca profile dari `terraform.tfvars`.
+Mau ganti profile? Edit `aws_profile` di:
 
-> Mau pakai nama profile lain? Edit `terraform/aws/{dev,prod}/terraform.tfvars` di field `aws_profile`.
+- `terraform/aws/dev/terraform.tfvars`
+- `terraform/aws/prod/terraform.tfvars`
+
+Atau ganti ke SSO: jalankan `aws configure sso`, kasih profile name, lalu ubah `aws_profile` di tfvars.
 
 ---
 
