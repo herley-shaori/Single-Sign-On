@@ -1,0 +1,31 @@
+# ---- Terraform ------------------------------------------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# .terraform.lock.hcl SENGAJA tidak di-ignore (best practice: commit lock file)
+
+# ---- Secrets / kredensial -------------------------------------------------
+# Jangan pernah commit file yang berisi kredensial Azure / AWS.
+*.tfvars.secret
+*.secret
+*.secrets
+.env
+.envrc
+credentials
+credentials.json
+
+# ---- OS / Editor ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
