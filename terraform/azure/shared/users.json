@@ -1,0 +1,13 @@
+{
+  "_comment": "Sumber data user untuk azuread_user. Key = UPN (user principal name). given_name & surname WAJIB diisi karena SCIM provisioning ke AWS IAM Identity Center butuh name.givenName & name.familyName. group_memberships = list nama group (harus ada di local.groups_by_name di main.tf).",
+
+  "users": {
+    "herley@catatancloud.dev": {
+      "display_name":      "Herley Al-Ash",
+      "given_name":        "Herley",
+      "surname":           "Al-Ash",
+      "mail_nickname":     "herley",
+      "group_memberships": ["developers"]
+    }
+  }
+}
