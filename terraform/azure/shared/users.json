@@ -2,18 +2,18 @@
   "_comment": "Source of truth for Azure AD users managed by terraform. Key = user_principal_name (UPN). given_name and surname are REQUIRED because SCIM provisioning to AWS IAM Identity Center needs name.givenName and name.familyName. group_memberships = list of group display_names; each name must exist in local.managed_groups in main.tf.",
 
   "users": {
-    "herley@catatancloud.dev": {
-      "display_name":      "Herley Al-Ash",
-      "given_name":        "Herley",
-      "surname":           "Al-Ash",
-      "mail_nickname":     "herley",
+    "alice@catatancloud.dev": {
+      "display_name":      "Alice Anderson",
+      "given_name":        "Alice",
+      "surname":           "Anderson",
+      "mail_nickname":     "alice",
       "group_memberships": ["developers"]
     },
-    "sarah@catatancloud.dev": {
-      "display_name":      "Sarah Syarofina",
-      "given_name":        "Sarah",
-      "surname":           "Syarofina",
-      "mail_nickname":     "sarah",
+    "bob@catatancloud.dev": {
+      "display_name":      "Bob Brown",
+      "given_name":        "Bob",
+      "surname":           "Brown",
+      "mail_nickname":     "bob",
       "group_memberships": ["data_scientists"]
     }
   }
