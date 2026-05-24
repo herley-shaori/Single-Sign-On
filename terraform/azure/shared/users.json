@@ -14,7 +14,7 @@
       "given_name":        "Bob",
       "surname":           "Brown",
       "mail_nickname":     "bob",
-      "group_memberships": ["data_scientists"]
+      "group_memberships": ["developers"]
     }
   }
 }
