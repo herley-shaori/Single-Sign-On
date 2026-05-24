@@ -7,7 +7,7 @@
       "given_name":        "Alice",
       "surname":           "Anderson",
       "mail_nickname":     "alice",
-      "group_memberships": ["developers"]
+      "group_memberships": ["data_scientists"]
     },
     "bob@catatancloud.dev": {
       "display_name":      "Bob Brown",
