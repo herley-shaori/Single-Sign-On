@@ -1,14 +1,14 @@
 variable "aws_region" {
-  description = "AWS region tempat resource SSO dibuat"
+  description = "AWS region where SSO resources are created"
   type        = string
 }
 
 variable "aws_profile" {
-  description = "Nama AWS CLI profile (dari ~/.aws/config) yang dipakai untuk auth"
+  description = "AWS CLI profile name (from ~/.aws/config) used for authentication"
   type        = string
 }
 
 variable "environment" {
-  description = "Nama environment (dev/prod)"
+  description = "Environment name (dev/prod)"
   type        = string
 }

@@ -1,8 +1,12 @@
 # =========================================================================
-# Azure Entra ID - SHARED (tenant-level, bukan per-environment)
+# Azure Entra ID - SHARED (tenant-level, not per environment)
 #
-# User-data di-drive dari users.json. Untuk tambah/ubah user, edit JSON,
-# lalu jalan ./apply.sh azure shared dari folder terraform/.
+# User data is driven from users.json. To add or modify users, edit the
+# JSON and run ./apply.sh azure shared from the terraform/ directory.
+#
+# Group data is currently held in local.managed_groups below. Add a new
+# entry there to create a new security group (and have it auto-assigned to
+# the SSO enterprise app).
 # =========================================================================
 
 # --- Reference: existing Enterprise Application Service Principal ----------
@@ -10,27 +14,37 @@ data "azuread_service_principal" "sso_app" {
   client_id = var.enterprise_app_client_id
 }
 
-# --- Security group: developers --------------------------------------------
-resource "azuread_group" "developers" {
-  display_name     = var.developers_group_name
-  description      = "Developers security group (managed by terraform)"
+# --- Managed security groups ----------------------------------------------
+# Every group listed here is created in Azure AD AND assigned to the SSO
+# enterprise application (so members get provisioned to AWS via SCIM).
+locals {
+  managed_groups = toset([
+    "developers",
+    "data_scientists",
+  ])
+}
+
+resource "azuread_group" "managed" {
+  for_each = local.managed_groups
+
+  display_name     = each.key
+  description      = "${each.key} security group (managed by terraform)"
   security_enabled = true
   mail_enabled     = false
 }
 
-# --- Load user data from JSON ----------------------------------------------
+# --- Load user data from JSON ---------------------------------------------
 locals {
   users_file = jsondecode(file("${path.module}/users.json"))
   users      = local.users_file.users
 
-  # Map nama group -> object_id (untuk dipakai oleh memberships).
-  # Tambah entry di sini kalau bikin azuread_group baru di atas.
+  # Map group display_name -> object_id, derived from azuread_group.managed.
   groups_by_name = {
-    developers = azuread_group.developers.object_id
+    for k, g in azuread_group.managed : k => g.object_id
   }
 
-  # Flatten (user, group) pairs jadi map yang stable buat for_each.
-  # Key: "<upn>|<group_name>"
+  # Flatten (user, group) pairs into a stable map for for_each.
+  # Key format: "<upn>|<group_name>"
   user_group_memberships = merge([
     for upn, u in local.users : {
       for g in u.group_memberships :
@@ -42,8 +56,9 @@ locals {
   ]...)
 }
 
-# --- Initial password per user (random, sensitive) -------------------------
-# Output: terraform output -json user_initial_passwords
+# --- Initial password per user (random, sensitive) ------------------------
+# Fetch with:
+#   terraform output -json user_initial_passwords
 resource "random_password" "user_initial" {
   for_each = local.users
 
@@ -52,7 +67,7 @@ resource "random_password" "user_initial" {
   override_special = "!@#$%^&*()-_=+"
 }
 
-# --- Users (driven from users.json) ----------------------------------------
+# --- Users (driven from users.json) ---------------------------------------
 resource "azuread_user" "users" {
   for_each = local.users
 
@@ -65,7 +80,7 @@ resource "azuread_user" "users" {
   force_password_change = true
 }
 
-# --- Group memberships (driven from users.json) ----------------------------
+# --- Group memberships (driven from users.json) ---------------------------
 resource "azuread_group_member" "memberships" {
   for_each = local.user_group_memberships
 
@@ -73,10 +88,10 @@ resource "azuread_group_member" "memberships" {
   member_object_id = azuread_user.users[each.value.upn].object_id
 }
 
-# --- SSO assignment: developers group -> Enterprise App --------------------
-# Pilih app_role bernama "User" dari SP target (AWS IAM Identity Center
-# punya 2 roles: "User" dan "msiam_access"). Pakai display_name supaya
-# tidak hardcode GUID.
+# --- SSO assignment: every managed group -> Enterprise App ----------------
+# Pick the app_role named "User" from the target SP (AWS IAM Identity
+# Center exposes two roles: "User" and "msiam_access"). Looking up by
+# display_name avoids hardcoding the role GUID.
 locals {
   sso_user_app_role_id = one([
     for r in data.azuread_service_principal.sso_app.app_roles :
@@ -84,8 +99,10 @@ locals {
   ])
 }
 
-resource "azuread_app_role_assignment" "developers_to_sso" {
+resource "azuread_app_role_assignment" "groups_to_sso" {
+  for_each = local.managed_groups
+
   app_role_id         = local.sso_user_app_role_id
-  principal_object_id = azuread_group.developers.object_id
+  principal_object_id = azuread_group.managed[each.key].object_id
   resource_object_id  = data.azuread_service_principal.sso_app.object_id
 }

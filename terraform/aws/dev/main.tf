@@ -1,7 +1,7 @@
 # =========================================================================
 # AWS IAM Identity Center (SSO) - environment: DEV
 # =========================================================================
-# Resource SSO asli akan ditambahkan di sini. Contoh yang umum:
+# Real SSO resources will be added here. Common examples:
 #
 #   - aws_ssoadmin_permission_set
 #   - aws_ssoadmin_managed_policy_attachment

@@ -4,7 +4,8 @@
 #   cloud : aws | azure
 #   env   : dev | prod | shared
 #
-# Untuk env=prod, kamu harus mengetik konfirmasi "destroy prod" sebelum jalan.
+# When env=prod, the operator must type the literal string "destroy prod"
+# to confirm before the destroy runs.
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
@@ -18,26 +19,26 @@ usage() {
 CLOUD="$1"
 ENV="$2"
 
-case "$CLOUD" in aws|azure)        ;; *) echo "ERR: cloud harus 'aws' atau 'azure' (dapat '$CLOUD')"        >&2; exit 1 ;; esac
-case "$ENV"   in dev|prod|shared)  ;; *) echo "ERR: env harus 'dev', 'prod', atau 'shared' (dapat '$ENV')" >&2; exit 1 ;; esac
+case "$CLOUD" in aws|azure)       ;; *) echo "ERR: cloud must be 'aws' or 'azure' (got '$CLOUD')"        >&2; exit 1 ;; esac
+case "$ENV"   in dev|prod|shared) ;; *) echo "ERR: env must be 'dev', 'prod', or 'shared' (got '$ENV')" >&2; exit 1 ;; esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="$SCRIPT_DIR/$CLOUD/$ENV"
 
-[[ -d "$TARGET_DIR" ]] || { echo "ERR: folder tidak ditemukan: $TARGET_DIR" >&2; exit 1; }
+[[ -d "$TARGET_DIR" ]] || { echo "ERR: folder not found: $TARGET_DIR" >&2; exit 1; }
 
 if [[ "$CLOUD" == "azure" ]]; then
   for v in ARM_CLIENT_ID ARM_CLIENT_SECRET ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
-    [[ -n "${!v:-}" ]] || { echo "ERR: env var $v belum di-set" >&2; exit 1; }
+    [[ -n "${!v:-}" ]] || { echo "ERR: env var $v is not set" >&2; exit 1; }
   done
 fi
 
-# --- Konfirmasi extra untuk prod ---------------------------------------------
+# --- Extra confirmation for prod ---------------------------------------------
 if [[ "$ENV" == "prod" ]]; then
-  echo "!! Kamu mau DESTROY environment PROD ($CLOUD/$ENV) !!"
-  read -r -p "   Ketik persis 'destroy prod' untuk lanjut: " confirm
+  echo "!! About to DESTROY production ($CLOUD/$ENV) !!"
+  read -r -p "   Type exactly 'destroy prod' to continue: " confirm
   if [[ "$confirm" != "destroy prod" ]]; then
-    echo "Dibatalkan."
+    echo "Aborted."
     exit 1
   fi
 fi

@@ -1,7 +1,7 @@
 # =========================================================================
 # Azure Entra ID (Azure AD) - environment: PROD
 # =========================================================================
-# Resource SSO asli akan ditambahkan di sini. Contoh yang umum:
+# Real resources will be added here. Common examples:
 #
 #   - azuread_group
 #   - azuread_user

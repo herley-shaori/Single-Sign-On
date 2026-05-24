@@ -4,11 +4,10 @@
 #   cloud : aws | azure
 #   env   : dev | prod | shared
 #
-# 'shared' dipakai untuk resource tenant-level yang tidak per-environment
-# (contoh: azure/shared untuk group/user/SSO assignment yang dipakai di
-# semua environment).
+# 'shared' is used for tenant-level resources that are not per environment
+# (e.g. azure/shared for the group/user/SSO assignments shared across envs).
 #
-# Contoh:
+# Examples:
 #   ./apply.sh aws   dev
 #   ./apply.sh azure prod
 #   ./apply.sh azure shared
@@ -25,15 +24,15 @@ usage() {
 CLOUD="$1"
 ENV="$2"
 
-case "$CLOUD" in aws|azure)       ;; *) echo "ERR: cloud harus 'aws' atau 'azure' (dapat '$CLOUD')"        >&2; exit 1 ;; esac
-case "$ENV"   in dev|prod|shared) ;; *) echo "ERR: env harus 'dev', 'prod', atau 'shared' (dapat '$ENV')" >&2; exit 1 ;; esac
+case "$CLOUD" in aws|azure)       ;; *) echo "ERR: cloud must be 'aws' or 'azure' (got '$CLOUD')"          >&2; exit 1 ;; esac
+case "$ENV"   in dev|prod|shared) ;; *) echo "ERR: env must be 'dev', 'prod', or 'shared' (got '$ENV')"   >&2; exit 1 ;; esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="$SCRIPT_DIR/$CLOUD/$ENV"
 
-[[ -d "$TARGET_DIR" ]] || { echo "ERR: folder tidak ditemukan: $TARGET_DIR" >&2; exit 1; }
+[[ -d "$TARGET_DIR" ]] || { echo "ERR: folder not found: $TARGET_DIR" >&2; exit 1; }
 
-# --- Guard: Azure butuh ARM_* env vars ---------------------------------------
+# --- Guard: Azure requires ARM_* env vars ------------------------------------
 if [[ "$CLOUD" == "azure" ]]; then
   missing=()
   for v in ARM_CLIENT_ID ARM_CLIENT_SECRET ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
@@ -41,9 +40,9 @@ if [[ "$CLOUD" == "azure" ]]; then
   done
   if (( ${#missing[@]} > 0 )); then
     cat >&2 <<EOF
-ERR: env var Azure berikut belum di-set: ${missing[*]}
+ERR: the following Azure env vars are not set: ${missing[*]}
 
-Set dulu di shell-mu (JANGAN simpan ke file yang di-commit):
+Set them in your shell (DO NOT save them to a tracked file):
   export ARM_CLIENT_ID="<appId>"
   export ARM_CLIENT_SECRET="<password>"
   export ARM_TENANT_ID="<tenant>"

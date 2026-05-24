@@ -1,12 +1,12 @@
 # =========================================================================
-# Kredensial Azure dibaca dari ENVIRONMENT VARIABLES:
+# Azure credentials are read from ENVIRONMENT VARIABLES:
 #   - ARM_CLIENT_ID
 #   - ARM_CLIENT_SECRET
 #   - ARM_TENANT_ID
-#   - ARM_SUBSCRIPTION_ID  (tidak strictly diperlukan untuk azuread saja,
-#                            tapi script apply.sh memvalidasi semua 4 vars)
+#   - ARM_SUBSCRIPTION_ID  (not strictly required for the azuread provider
+#                            alone, but apply.sh validates all four vars)
 #
-# JANGAN PERNAH menulis nilai rahasia di file .tf / .tfvars.
+# NEVER write secret values into .tf or .tfvars files.
 # =========================================================================
 
 provider "azuread" {}

@@ -11,10 +11,11 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
-# .terraform.lock.hcl SENGAJA tidak di-ignore (best practice: commit lock file)
+# .terraform.lock.hcl is intentionally NOT ignored (best practice: commit
+# the lock file so provider versions stay reproducible).
 
-# ---- Secrets / kredensial -------------------------------------------------
-# Jangan pernah commit file yang berisi kredensial Azure / AWS.
+# ---- Secrets / credentials ------------------------------------------------
+# Never commit files holding Azure / AWS credentials.
 *.tfvars.secret
 *.secret
 *.secrets
@@ -23,7 +24,7 @@ override.tf.json
 credentials
 credentials.json
 
-# ---- OS / Editor ----------------------------------------------------------
+# ---- OS / editor ----------------------------------------------------------
 .DS_Store
 Thumbs.db
 .idea/

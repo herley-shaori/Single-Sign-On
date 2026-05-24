@@ -1,1 +1,1 @@
-# Outputs akan ditambahkan di sini setelah resource didefinisikan.
+# Outputs will be added here once resources are defined.

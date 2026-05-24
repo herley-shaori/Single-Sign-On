@@ -2,11 +2,11 @@
 # Azure Entra ID + Storage - environment: DEV
 # =========================================================================
 # Sample: Resource Group + Storage Account + Blob Container.
-# Tujuan: smoke-test bahwa kredensial SP (via ARM_* env vars) dan provider
-# azurerm berjalan end-to-end.
+# Purpose: smoke-test that SP credentials (via ARM_* env vars) and the
+# azurerm provider work end-to-end.
 # =========================================================================
 
-# Suffix random supaya nama storage account globally-unique.
+# Random suffix so the storage account name is globally unique.
 resource "random_string" "suffix" {
   length  = 6
   upper   = false
