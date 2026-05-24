@@ -2,14 +2,14 @@
 # -----------------------------------------------------------------------------
 # Usage: ./destroy.sh <cloud> <env>
 #   cloud : aws | azure
-#   env   : dev | prod
+#   env   : dev | prod | shared
 #
 # Untuk env=prod, kamu harus mengetik konfirmasi "destroy prod" sebelum jalan.
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <aws|azure> <dev|prod>" >&2
+  echo "Usage: $0 <aws|azure> <dev|prod|shared>" >&2
   exit 1
 }
 
@@ -18,8 +18,8 @@ usage() {
 CLOUD="$1"
 ENV="$2"
 
-case "$CLOUD" in aws|azure) ;; *) echo "ERR: cloud harus 'aws' atau 'azure' (dapat '$CLOUD')" >&2; exit 1 ;; esac
-case "$ENV"   in dev|prod)  ;; *) echo "ERR: env harus 'dev' atau 'prod' (dapat '$ENV')"   >&2; exit 1 ;; esac
+case "$CLOUD" in aws|azure)        ;; *) echo "ERR: cloud harus 'aws' atau 'azure' (dapat '$CLOUD')"        >&2; exit 1 ;; esac
+case "$ENV"   in dev|prod|shared)  ;; *) echo "ERR: env harus 'dev', 'prod', atau 'shared' (dapat '$ENV')" >&2; exit 1 ;; esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="$SCRIPT_DIR/$CLOUD/$ENV"
