@@ -14,23 +14,34 @@ data "azuread_service_principal" "sso_app" {
   client_id = var.enterprise_app_client_id
 }
 
-# --- Managed security groups ----------------------------------------------
+# --- Managed groups -------------------------------------------------------
 # Every group listed here is created in Azure AD AND assigned to the SSO
 # enterprise application (so members get provisioned to AWS via SCIM).
+#
+# Groups are Microsoft 365 (Unified) groups with security_enabled = true:
+#   - mail_enabled = true is required for the 'Unified' group type
+#   - The resulting 'mail' attribute is <mail_nickname>@<initial-onmicrosoft-domain>
+#     because catatancloud.dev is not configured as an Accepted Domain in
+#     Exchange Online. To get the mail at @catatancloud.dev, that domain
+#     must be added as an Accepted Domain first (Exchange admin action).
+#   - The mail attribute is needed for GCP Cloud Identity SCIM sync, which
+#     requires groups to have an email-format identifier.
 locals {
-  managed_groups = toset([
-    "developers",
-    "data_scientists",
-  ])
+  managed_groups = {
+    developers      = { mail_nickname = "developers" }
+    data_scientists = { mail_nickname = "ds" }
+  }
 }
 
 resource "azuread_group" "managed" {
   for_each = local.managed_groups
 
   display_name     = each.key
-  description      = "${each.key} security group (managed by terraform)"
+  description      = "${each.key} group (managed by terraform)"
   security_enabled = true
-  mail_enabled     = false
+  mail_enabled     = true
+  mail_nickname    = each.value.mail_nickname
+  types            = ["Unified"]
 }
 
 # --- Load user data from JSON ---------------------------------------------
