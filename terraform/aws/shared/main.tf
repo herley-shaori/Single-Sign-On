@@ -75,18 +75,24 @@ locals {
 }
 
 # --- Look up each referenced group in the Identity Store ------------------
-data "aws_identitystore_group" "by_name" {
-  for_each = local.all_group_names
-
-  identity_store_id = local.identity_store_id
-
-  alternate_identifier {
-    unique_attribute {
-      attribute_path  = "DisplayName"
-      attribute_value = each.key
-    }
-  }
-}
+# TEMPORARILY COMMENTED OUT while we convert the Azure AD source groups to
+# Microsoft 365 (Unified) groups. SCIM re-syncs the groups to AWS with NEW
+# Identity Store group_ids, so this data source would resolve to dead
+# group_ids during the transition. Uncomment after the new groups appear
+# in the Identity Store, then re-apply.
+#
+# data "aws_identitystore_group" "by_name" {
+#   for_each = local.all_group_names
+#
+#   identity_store_id = local.identity_store_id
+#
+#   alternate_identifier {
+#     unique_attribute {
+#       attribute_path  = "DisplayName"
+#       attribute_value = each.key
+#     }
+#   }
+# }
 
 # --- Permission sets ------------------------------------------------------
 resource "aws_ssoadmin_permission_set" "this" {
@@ -108,23 +114,26 @@ resource "aws_ssoadmin_managed_policy_attachment" "this" {
 }
 
 # --- Account assignments: (permission_set, group, account) ----------------
-resource "aws_ssoadmin_account_assignment" "this" {
-  for_each = local.ps_group_account_assignments
-
-  instance_arn       = local.sso_instance_arn
-  permission_set_arn = aws_ssoadmin_permission_set.this[each.value.ps_key].arn
-
-  principal_id   = data.aws_identitystore_group.by_name[each.value.group_name].group_id
-  principal_type = "GROUP"
-
-  target_id   = each.value.account
-  target_type = "AWS_ACCOUNT"
-
-  # The managed-policy attachment must exist before the assignment so the
-  # permission set is fully formed when AWS provisions it into the target
-  # account.
-  depends_on = [aws_ssoadmin_managed_policy_attachment.this]
-}
+# TEMPORARILY COMMENTED OUT while we convert the Azure AD source groups to
+# Microsoft 365 (Unified) groups. See note on the data source above.
+#
+# resource "aws_ssoadmin_account_assignment" "this" {
+#   for_each = local.ps_group_account_assignments
+#
+#   instance_arn       = local.sso_instance_arn
+#   permission_set_arn = aws_ssoadmin_permission_set.this[each.value.ps_key].arn
+#
+#   principal_id   = data.aws_identitystore_group.by_name[each.value.group_name].group_id
+#   principal_type = "GROUP"
+#
+#   target_id   = each.value.account
+#   target_type = "AWS_ACCOUNT"
+#
+#   # The managed-policy attachment must exist before the assignment so the
+#   # permission set is fully formed when AWS provisions it into the target
+#   # account.
+#   depends_on = [aws_ssoadmin_managed_policy_attachment.this]
+# }
 
 # --- Address migrations (rename of map keys) ------------------------------
 # Permission set names were renamed to match the SCIM-provisioned group
@@ -147,11 +156,7 @@ moved {
   from = aws_ssoadmin_managed_policy_attachment.this["data_scientists_s3_full|arn:aws:iam::aws:policy/AmazonS3FullAccess"]
   to   = aws_ssoadmin_managed_policy_attachment.this["data_scientists|arn:aws:iam::aws:policy/AmazonS3FullAccess"]
 }
-moved {
-  from = aws_ssoadmin_account_assignment.this["developers_ec2_full|developers|623127157773"]
-  to   = aws_ssoadmin_account_assignment.this["developers|developers|623127157773"]
-}
-moved {
-  from = aws_ssoadmin_account_assignment.this["data_scientists_s3_full|data_scientists|623127157773"]
-  to   = aws_ssoadmin_account_assignment.this["data_scientists|data_scientists|623127157773"]
-}
+# 'moved' blocks for account_assignment removed while the resource itself
+# is commented out (they would error if the target address doesn't exist).
+# Re-add when the resource is uncommented (only needed if state still has
+# the older 'developers_ec2_full|...' / 'data_scientists_s3_full|...' keys).

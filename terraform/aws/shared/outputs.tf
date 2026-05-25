@@ -23,9 +23,12 @@ output "permission_sets" {
   description = "Map of internal key -> permission set name and ARN"
 }
 
-output "groups" {
-  value = {
-    for name, g in data.aws_identitystore_group.by_name : name => g.group_id
-  }
-  description = "Map of group display_name -> Identity Store group_id (as resolved from SCIM-provisioned groups)"
-}
+# TEMPORARILY COMMENTED OUT while the data.aws_identitystore_group is
+# commented out in main.tf (see note there).
+#
+# output "groups" {
+#   value = {
+#     for name, g in data.aws_identitystore_group.by_name : name => g.group_id
+#   }
+#   description = "Map of group display_name -> Identity Store group_id (as resolved from SCIM-provisioned groups)"
+# }
