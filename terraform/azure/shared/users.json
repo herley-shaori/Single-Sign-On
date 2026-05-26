@@ -15,6 +15,13 @@
       "surname":           "Brown",
       "mail_nickname":     "bob",
       "group_memberships": ["developers"]
+    },
+    "charlie@catatancloud.dev": {
+      "display_name":      "Charlie Smith",
+      "given_name":        "Charlie",
+      "surname":           "Smith",
+      "mail_nickname":     "charlie",
+      "group_memberships": []
     }
   }
 }
