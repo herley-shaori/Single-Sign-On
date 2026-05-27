@@ -15,7 +15,7 @@ override.tf.json
 # the lock file so provider versions stay reproducible).
 
 # ---- Secrets / credentials ------------------------------------------------
-# Never commit files holding Azure / AWS credentials.
+# Never commit files holding Azure / AWS / GCP credentials.
 *.tfvars.secret
 *.secret
 *.secrets
@@ -23,6 +23,13 @@ override.tf.json
 .envrc
 credentials
 credentials.json
+
+# GCP service account JSON files (multiple patterns for defense in depth).
+**/sa.json
+**/service-account.json
+**/*-service-account.json
+**/*-credentials.json
+**/.credentials.json
 
 # ---- OS / editor ----------------------------------------------------------
 .DS_Store

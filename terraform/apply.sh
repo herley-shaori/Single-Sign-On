@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # Usage: ./apply.sh <cloud> <env>
-#   cloud : aws | azure
+#   cloud : aws | azure | gcp
 #   env   : dev | prod | shared
 #
 # 'shared' is used for tenant-level resources that are not per environment
@@ -11,11 +11,12 @@
 #   ./apply.sh aws   dev
 #   ./apply.sh azure prod
 #   ./apply.sh azure shared
+#   ./apply.sh gcp   shared
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <aws|azure> <dev|prod|shared>" >&2
+  echo "Usage: $0 <aws|azure|gcp> <dev|prod|shared>" >&2
   exit 1
 }
 
@@ -24,8 +25,8 @@ usage() {
 CLOUD="$1"
 ENV="$2"
 
-case "$CLOUD" in aws|azure)       ;; *) echo "ERR: cloud must be 'aws' or 'azure' (got '$CLOUD')"          >&2; exit 1 ;; esac
-case "$ENV"   in dev|prod|shared) ;; *) echo "ERR: env must be 'dev', 'prod', or 'shared' (got '$ENV')"   >&2; exit 1 ;; esac
+case "$CLOUD" in aws|azure|gcp)   ;; *) echo "ERR: cloud must be 'aws', 'azure', or 'gcp' (got '$CLOUD')" >&2; exit 1 ;; esac
+case "$ENV"   in dev|prod|shared) ;; *) echo "ERR: env must be 'dev', 'prod', or 'shared' (got '$ENV')"  >&2; exit 1 ;; esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="$SCRIPT_DIR/$CLOUD/$ENV"
@@ -48,6 +49,15 @@ Set them in your shell (DO NOT save them to a tracked file):
   export ARM_TENANT_ID="<tenant>"
   export ARM_SUBSCRIPTION_ID="<subscription-id>"
 EOF
+    exit 1
+  fi
+fi
+
+# --- Guard: GCP needs the service account JSON file in the target dir --------
+if [[ "$CLOUD" == "gcp" ]]; then
+  if [[ ! -f "$TARGET_DIR/sa.json" ]]; then
+    echo "ERR: GCP service account file not found at $TARGET_DIR/sa.json" >&2
+    echo "     Place the JSON there (the file is git-ignored)."          >&2
     exit 1
   fi
 fi
