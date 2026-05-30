@@ -1,0 +1,8 @@
+sa_credentials_file     = "sa.json"
+impersonated_user_email = "admin@example.com"
+gcp_project_id          = "your-gcp-project-id"
+
+developers_emails = [
+  "user1@example.com",
+  "user2@example.com",
+]

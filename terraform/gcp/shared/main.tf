@@ -10,21 +10,17 @@
 # --- IAM: 'developers' role mapping (project-level) -----------------------
 # Members of the 'developers' role get full Cloud Storage access on the
 # target project. Bind at project level here; switch to organization-level
-# binding once a GCP Organization exists for catatancloud.dev and the SA
-# has Organization IAM Admin permission.
+# binding once a GCP Organization exists for your domain and the SA has
+# Organization IAM Admin permission.
 #
-# These email addresses must exist as Google identities (Workspace users
-# or otherwise). For SCIM-provisioned users, the email is created on the
-# Workspace side first; this binding then references them by email.
-locals {
-  developers_emails = [
-    "damian@catatancloud.dev",
-    "bob@catatancloud.dev",
-  ]
-}
+# Emails are passed via var.developers_emails (tfvars-local, never tracked).
+# They must exist as Google identities (Workspace users or otherwise)
+# before the binding actually grants access. For SCIM-provisioned users,
+# the email is created on the Workspace side first; this binding then
+# references them by email and activates automatically.
 
 resource "google_project_iam_member" "developers_storage_admin" {
-  for_each = toset(local.developers_emails)
+  for_each = toset(var.developers_emails)
 
   project = var.gcp_project_id
   role    = "roles/storage.admin"

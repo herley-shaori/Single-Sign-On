@@ -31,6 +31,16 @@ credentials.json
 **/*-credentials.json
 **/.credentials.json
 
+# ---- Operator-specific values (kept local, never committed) ---------------
+# Each *.tfvars and users.json carries account IDs, profile names, domain
+# names, project IDs, user emails and similar identifiers that are unique
+# to a specific operator. Track *.tfvars.example / users.json.example
+# templates instead and copy them to the real names locally.
+**/terraform.tfvars
+**/users.json
+!**/terraform.tfvars.example
+!**/users.json.example
+
 # ---- OS / editor ----------------------------------------------------------
 .DS_Store
 Thumbs.db

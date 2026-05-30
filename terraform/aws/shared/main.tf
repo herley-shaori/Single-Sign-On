@@ -126,32 +126,6 @@ resource "aws_ssoadmin_account_assignment" "this" {
   depends_on = [aws_ssoadmin_managed_policy_attachment.this]
 }
 
-# --- Address migrations (rename of map keys) ------------------------------
-# Permission set names were renamed to match the SCIM-provisioned group
-# names. AWS treats the permission_set name as ForceNew, so each block
-# below cleans up the state address; the resource itself is then replaced
-# (destroy + recreate) by the plan because of the name change.
-moved {
-  from = aws_ssoadmin_permission_set.this["developers_ec2_full"]
-  to   = aws_ssoadmin_permission_set.this["developers"]
-}
-moved {
-  from = aws_ssoadmin_permission_set.this["data_scientists_s3_full"]
-  to   = aws_ssoadmin_permission_set.this["data_scientists"]
-}
-moved {
-  from = aws_ssoadmin_managed_policy_attachment.this["developers_ec2_full|arn:aws:iam::aws:policy/AmazonEC2FullAccess"]
-  to   = aws_ssoadmin_managed_policy_attachment.this["developers|arn:aws:iam::aws:policy/AmazonEC2FullAccess"]
-}
-moved {
-  from = aws_ssoadmin_managed_policy_attachment.this["data_scientists_s3_full|arn:aws:iam::aws:policy/AmazonS3FullAccess"]
-  to   = aws_ssoadmin_managed_policy_attachment.this["data_scientists|arn:aws:iam::aws:policy/AmazonS3FullAccess"]
-}
-moved {
-  from = aws_ssoadmin_account_assignment.this["developers_ec2_full|developers|623127157773"]
-  to   = aws_ssoadmin_account_assignment.this["developers|developers|623127157773"]
-}
-moved {
-  from = aws_ssoadmin_account_assignment.this["data_scientists_s3_full|data_scientists|623127157773"]
-  to   = aws_ssoadmin_account_assignment.this["data_scientists|data_scientists|623127157773"]
-}
+# (Obsolete 'moved' blocks for one-time historical renames removed; the
+# state migrations they described have long since happened, so the blocks
+# became no-ops.)

@@ -18,6 +18,7 @@ Per cloud: split by environment (`dev`, `prod`) with a tenant-level
 sso/
 ├── .gitignore
 ├── README.md
+├── LICENSE
 └── terraform/
     ├── apply.sh                # ./apply.sh   <aws|azure|gcp> <dev|prod|shared>
     ├── destroy.sh              # ./destroy.sh <aws|azure|gcp> <dev|prod|shared>
@@ -38,15 +39,15 @@ folder).
 
 ---
 
-## What is configured today
+## What is configured
 
 ### Azure AD (`terraform/azure/shared`)
 
-- **Users**: `alice`, `bob`, `charlie` — all under `@catatancloud.dev`. Driven by `users.json`; every user has `given_name` + `surname` populated (required by SCIM provisioning to AWS).
-- **Security groups**: `developers`, `data_scientists` (mail-disabled).
-- **Memberships**: alice → `data_scientists`, bob → `developers`. charlie has no group.
+- **Users**: driven by `users.json`. Every user has `given_name` + `surname` populated (required by SCIM provisioning to AWS).
+- **Security groups**: `developers`, `data_scientists` (mail-disabled). Add more by appending to `local.managed_groups` in `main.tf`.
+- **Memberships**: declared per-user inside `users.json` under `group_memberships`.
 - **Initial passwords**: random per user, exposed as a sensitive map output (`user_initial_passwords`).
-- **SSO assignment**: each managed group is assigned to the AWS IAM Identity Center enterprise app's `User` app role, so SCIM provisions users + group membership to AWS.
+- **SSO assignment**: each managed group is assigned to the Azure AD Enterprise Application's `User` app role (e.g. AWS IAM Identity Center), so SCIM provisions users + group membership to the downstream cloud.
 
 ### AWS IAM Identity Center (`terraform/aws/shared`)
 
@@ -54,7 +55,7 @@ folder).
   - `developers` — `AmazonEC2FullAccess` attached
   - `data_scientists` — `AmazonS3FullAccess` attached
   - 8-hour session duration each
-- **Account assignments**: both permission sets assigned to the SCIM-provisioned groups of the same name, scoped to the AWS account the configured profile resolves to (`var.target_account_ids` overrides).
+- **Account assignments**: both permission sets assigned to the SCIM-provisioned groups of the same name, scoped to the AWS account the configured profile resolves to. Override the target accounts via `var.target_account_ids` for multi-account setups.
 - Identity Center instance + identity store are discovered via data sources (no hardcoded ARNs).
 
 ### Azure dev (`terraform/azure/dev`)
@@ -63,7 +64,7 @@ folder).
 
 ### GCP (`terraform/gcp/shared`)
 
-- **IAM binding**: `roles/storage.admin` granted at project `terraform-access-497602` to the members of `local.developers_emails` (currently `damian@catatancloud.dev` and `bob@catatancloud.dev`).
+- **IAM binding**: `roles/storage.admin` granted at the target GCP project (set via `var.gcp_project_id`) to every email in `var.developers_emails`.
 - **No user resources**: GCP terraform does NOT create users. The bindings sit inert in the project IAM policy until a matching Google identity exists; activation happens automatically once the user appears in Google (via SCIM or manual create).
 
 ---
@@ -84,7 +85,36 @@ Azure AD users + groups
 
 - Adding a user in `users.json` (and `terraform apply azure shared`) → user lands in Azure AD → SCIM syncs to AWS within ~40 min → AWS permission set assignment activates.
 - Removing a user from `users.json` → user destroyed in Azure AD → SCIM tombstones in AWS → all SSO access cuts off.
-- **For Google**: setup of an Azure AD Enterprise App "Google Cloud / G Suite Connector by Microsoft" with provisioning enabled is required for users to appear in Google Workspace automatically. Until that is wired up, no one (Damian or Bob) can actually log in to GCP even though their IAM bindings exist.
+- **For Google**: setting up an Azure AD Enterprise App "Google Cloud / G Suite Connector by Microsoft" with provisioning enabled is required for users to appear in Google Workspace automatically. Until that is wired up, the GCP IAM bindings still resolve to no live identity, so no one can actually log in to GCP using those bindings.
+
+---
+
+## First-time setup
+
+`*.tfvars` and `users.json` are operator-specific and **git-ignored**. Templates
+are tracked as `*.tfvars.example` and `users.json.example`. To set up a fresh
+checkout:
+
+```bash
+# AWS
+cp terraform/aws/dev/terraform.tfvars.example    terraform/aws/dev/terraform.tfvars
+cp terraform/aws/prod/terraform.tfvars.example   terraform/aws/prod/terraform.tfvars
+cp terraform/aws/shared/terraform.tfvars.example terraform/aws/shared/terraform.tfvars
+
+# Azure
+cp terraform/azure/dev/terraform.tfvars.example    terraform/azure/dev/terraform.tfvars
+cp terraform/azure/prod/terraform.tfvars.example   terraform/azure/prod/terraform.tfvars
+cp terraform/azure/shared/terraform.tfvars.example terraform/azure/shared/terraform.tfvars
+cp terraform/azure/shared/users.json.example       terraform/azure/shared/users.json
+
+# GCP
+cp terraform/gcp/shared/terraform.tfvars.example   terraform/gcp/shared/terraform.tfvars
+# Plus drop your Google Workspace service account JSON at:
+#   terraform/gcp/shared/sa.json
+# (the file is git-ignored by multiple defense-in-depth patterns)
+```
+
+Then fill in the placeholders inside each copied file with your own values.
 
 ---
 
@@ -93,7 +123,7 @@ Azure AD users + groups
 ```bash
 cd terraform
 
-# AWS - uses the 'pribadi' AWS CLI profile
+# AWS - uses the AWS CLI profile from your tfvars
 ./apply.sh aws shared
 ./apply.sh aws dev
 
@@ -110,36 +140,35 @@ cd terraform
 
 **Common workflows:**
 
-- Add or modify an Azure AD user: edit `terraform/azure/shared/users.json`, then `./apply.sh azure shared`.
+- Add or modify an Azure AD user: edit your local `terraform/azure/shared/users.json`, then `./apply.sh azure shared`.
 - Add a new Azure security group: append it to `local.managed_groups` in `terraform/azure/shared/main.tf`. Every group there is auto-created in Azure AD and SSO-assigned to AWS.
 - Add an AWS permission set: append an entry to `local.permission_sets` in `terraform/aws/shared/main.tf`. Each entry can target multiple managed policies and multiple groups.
-- Add a developer to the GCP `developers` role: append the email to `local.developers_emails` in `terraform/gcp/shared/main.tf`.
+- Add a developer to the GCP `developers` role: append the email to `developers_emails` in your local `terraform/gcp/shared/terraform.tfvars`.
 
 ---
 
-## Credential setup on this laptop
+## Credential setup
 
-### 1. AWS — via the `pribadi` profile
+### 1. AWS — via a CLI profile
 
-All AWS environments use the AWS CLI profile **`pribadi`**, configured
-locally in `~/.aws/credentials` / `~/.aws/config`.
+All AWS environments use an AWS CLI profile, configured locally in
+`~/.aws/credentials` / `~/.aws/config`. The profile name lives in
+each `aws_profile` entry inside `terraform/aws/<env>/terraform.tfvars`.
 
 ```bash
-aws sts get-caller-identity --profile pribadi
+aws sts get-caller-identity --profile <your-aws-cli-profile>
 ```
-
-To switch profiles, edit `aws_profile` in `terraform/aws/<env>/terraform.tfvars`.
 
 ### 2. Azure — Service Principal via env vars
 
-**Hard rule:** SP `appId` / `password` / `tenant` MUST NOT be written to
-any `.tf` / `.tfvars` / any tracked file.
+**Hard rule:** the SP's `appId` / `password` / `tenant` MUST NOT be written
+to any `.tf` / `.tfvars` / any tracked file.
 
 ```bash
-export ARM_CLIENT_ID="<appId>"
-export ARM_CLIENT_SECRET="<password>"
-export ARM_TENANT_ID="<tenant>"
-export ARM_SUBSCRIPTION_ID="<subscription-id>"
+export ARM_CLIENT_ID="<your-sp-appId>"
+export ARM_CLIENT_SECRET="<your-sp-password>"
+export ARM_TENANT_ID="<your-tenant-id>"
+export ARM_SUBSCRIPTION_ID="<your-subscription-id>"
 ```
 
 Subscription ID is not in the SP JSON — fetch it:
@@ -149,21 +178,20 @@ az login --service-principal -u "$ARM_CLIENT_ID" -p "$ARM_CLIENT_SECRET" -t "$AR
 az account list --output table
 ```
 
-`apply.sh` / `destroy.sh` refuse to run for `azure` if any ARM_* var is
-missing.
+`apply.sh` / `destroy.sh` refuse to run for `azure` if any ARM_* var is missing.
 
 ### 3. GCP — service account JSON file (git-ignored)
 
-The SA JSON lives at `terraform/gcp/shared/sa.json`. Multiple
-`.gitignore` patterns (e.g. `**/sa.json`, `**/service-account.json`,
+The SA JSON lives at `terraform/gcp/shared/sa.json`. Multiple `.gitignore`
+patterns (e.g. `**/sa.json`, `**/service-account.json`,
 `**/*-credentials.json`) make it impossible to add accidentally via
 `git add -A`.
 
-`apply.sh` / `destroy.sh` refuse to run for `gcp` if `sa.json` is
-missing in the target folder.
+`apply.sh` / `destroy.sh` refuse to run for `gcp` if `sa.json` is missing in
+the target folder.
 
-To rotate: replace the file in-place. To switch to ADC: set the
-provider's `credentials` field to omit `file(...)`, then run
+To rotate: replace the file in-place. To switch to Application Default
+Credentials: drop the `credentials` field from the provider block and run
 `gcloud auth application-default login --scopes='...admin.directory.user'`
 signed in as a Workspace super admin.
 
@@ -171,7 +199,7 @@ signed in as a Workspace super admin.
 
 ## Required permissions (one-time setup per identity)
 
-### Azure SP (Microsoft Graph application permissions, admin-consented)
+### Azure SP — Microsoft Graph application permissions (admin-consented)
 
 | Permission                          | Used for                                  |
 |-------------------------------------|-------------------------------------------|
@@ -182,48 +210,39 @@ signed in as a Workspace super admin.
 
 ### GCP SA
 
-- **Project IAM Admin** (or **Owner**) on `terraform-access-497602` — to manage IAM bindings.
+- **Project IAM Admin** (or **Owner**) on your target GCP project — to manage IAM bindings.
 - **Workspace Domain-Wide Delegation** for the SA's client_id with scopes `https://www.googleapis.com/auth/admin.directory.user` (and `.group` / `.group.member` if you later add Workspace groups). Configured in Workspace Admin Console → Security → API controls → Domain-wide delegation.
 - **APIs enabled** in the SA's project: `admin.googleapis.com`, `cloudresourcemanager.googleapis.com`.
 - **Workspace super admin email** to impersonate (set in `terraform/gcp/shared/terraform.tfvars` as `impersonated_user_email`).
 
 ### AWS CLI
 
-- The `pribadi` profile must point to an account that has Identity
-  Center admin access (the management or delegated admin account).
+- The profile pointed to by `aws_profile` must resolve to an account that
+  has Identity Center admin access (the management or delegated admin
+  account).
 
 ---
 
 ## Hardening notes
 
-- **Never** paste `export ARM_CLIENT_SECRET=...` into a shell whose
-  history is recorded. Either prefix with a space (`HIST_IGNORE_SPACE`
-  in zsh), source from a non-tracked file, or use a password manager /
-  `direnv`.
-- **Rotate** SP / SA credentials if they were ever shared in chat,
-  screenshots, or third-party services — even if no tracked file in
-  this repo contains them.
-- **Consider Org Policy `iam.allowedPolicyMemberDomains`** on the GCP
-  `catatancloud.dev` organization — restricts IAM bindings to the
-  tenant's own domains, so a typo in an email principal cannot
-  accidentally grant access to a stranger.
-- To move from local state to a remote backend, add a `backend` block
-  to the relevant `versions.tf`, then run
-  `terraform init -migrate-state`.
-- AWS region default is `ap-southeast-3` (Jakarta), an opt-in region —
-  enable it per account.
-- `.terraform.lock.hcl` is intentionally committed so provider versions
-  stay reproducible across applies.
+- **Never** paste `export ARM_CLIENT_SECRET=...` into a shell whose history is recorded. Either prefix with a space (`HIST_IGNORE_SPACE` in zsh), source from a non-tracked file, or use a password manager / `direnv`.
+- **Rotate** SP / SA credentials if they were ever shared in chat, screenshots, or third-party services — even if no tracked file in this repo contains them.
+- **Consider Org Policy `iam.allowedPolicyMemberDomains`** on your GCP Organization — restricts IAM bindings to your tenant's own domains, so a typo in an email principal cannot accidentally grant access to a stranger.
+- To move from local state to a remote backend, add a `backend` block to the relevant `versions.tf`, then run `terraform init -migrate-state`.
+- AWS region default in the example tfvars is `ap-southeast-3` (Jakarta), an opt-in region — enable it per account or switch to a region that is enabled by default.
+- `.terraform.lock.hcl` is intentionally committed so provider versions stay reproducible across applies.
 
 ---
 
 ## Branch / workflow
 
-- Default branch: `master`. No remote set; commits live locally.
-- Commit messages are descriptive English; no Anthropic / Claude / AI
-  attribution trailers.
+- Default branch: `master`.
+- Commit messages are descriptive English; no AI-tool attribution trailers.
 - Every commit run is preceded by a `git diff --cached | grep` scan for
   known-bad strings (private keys, SP secrets, generated passwords) so
   nothing sensitive lands in history.
+- All operator-specific values (account IDs, domain names, project IDs,
+  profile names, user emails) live only in git-ignored local files. The
+  tracked configuration is fully generic and re-usable.
 </content>
 </invoke>
