@@ -24,13 +24,19 @@
 #   ])
 # }
 
-# --- Example: a security group --------------------------------------------
-# resource "azuread_group" "developers" {
-#   display_name     = "developers"
-#   description      = "developers group (managed by terraform)"
-#   security_enabled = true
-#   mail_enabled     = false
-# }
+# --- Microsoft 365 (Unified) group: developers ----------------------------
+# Unified group so it carries a mail attribute. mail_enabled = true is
+# required for the 'Unified' type. The mail domain is assigned by the tenant
+# from an Exchange-enabled domain; to land on a custom domain that domain
+# must be an Exchange Online accepted domain.
+resource "azuread_group" "developers" {
+  display_name     = "developers"
+  description      = "developers group (managed by terraform)"
+  security_enabled = true
+  mail_enabled     = true
+  mail_nickname    = "developers"
+  types            = ["Unified"]
+}
 
 # --- Example: a user with a random initial password -----------------------
 # resource "random_password" "example_user" {
