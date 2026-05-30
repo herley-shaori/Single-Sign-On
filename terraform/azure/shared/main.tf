@@ -9,20 +9,21 @@
 # =========================================================================
 
 # --- Reference: existing Enterprise Application Service Principal ----------
-# Uncomment when you need to assign a group/user to the SSO enterprise app.
-#
-# data "azuread_service_principal" "sso_app" {
-#   client_id = var.enterprise_app_client_id
-# }
-#
-# # AWS IAM Identity Center exposes two app roles ("User" and "msiam_access").
-# # Pick "User" by display_name to avoid hardcoding the role GUID.
-# locals {
-#   sso_user_app_role_id = one([
-#     for r in data.azuread_service_principal.sso_app.app_roles :
-#     r.id if r.display_name == "User"
-#   ])
-# }
+# The SSO enterprise app (AWS IAM Identity Center). Groups must be ASSIGNED to
+# this app to be provisioned via SCIM; an unassigned group is skipped with
+# SkipReason=NotEffectivelyEntitled.
+data "azuread_service_principal" "sso_app" {
+  client_id = var.enterprise_app_client_id
+}
+
+# AWS IAM Identity Center exposes two app roles ("User" and "msiam_access").
+# Pick "User" by display_name to avoid hardcoding the role GUID.
+locals {
+  sso_user_app_role_id = one([
+    for r in data.azuread_service_principal.sso_app.app_roles :
+    r.id if r.display_name == "User"
+  ])
+}
 
 # --- Microsoft 365 (Unified) group: developers ----------------------------
 # Unified group so it carries a mail attribute. mail_enabled = true is
@@ -143,9 +144,18 @@ resource "azuread_group_member" "bob_developers" {
 #   member_object_id = azuread_user.example_user.object_id
 # }
 
-# --- Example: assign a group to the SSO enterprise app --------------------
-# resource "azuread_app_role_assignment" "developers_to_sso" {
-#   app_role_id         = local.sso_user_app_role_id
-#   principal_object_id = azuread_group.developers.object_id
-#   resource_object_id  = data.azuread_service_principal.sso_app.object_id
-# }
+# --- Assign groups to the SSO enterprise app ------------------------------
+# Without this assignment the group is skipped by SCIM provisioning
+# (SkipReason=NotEffectivelyEntitled). Assigning the group with the "User"
+# app role brings it into entitlement and lets it provision to AWS.
+resource "azuread_app_role_assignment" "developers_to_sso" {
+  app_role_id         = local.sso_user_app_role_id
+  principal_object_id = azuread_group.developers.object_id
+  resource_object_id  = data.azuread_service_principal.sso_app.object_id
+}
+
+resource "azuread_app_role_assignment" "datascientist_to_sso" {
+  app_role_id         = local.sso_user_app_role_id
+  principal_object_id = azuread_group.datascientist.object_id
+  resource_object_id  = data.azuread_service_principal.sso_app.object_id
+}
