@@ -45,15 +45,29 @@ folder).
 
 Users, security groups, memberships and SSO assignments are defined
 **directly as terraform resources** in `main.tf` (there is no external
-`users.json`). The file currently ships as a clean scaffold with commented
-examples — no live identity objects — ready for you to add your own.
+`users.json`). The file ships with a live `developers` Microsoft 365
+group plus commented examples for the other object types, ready to adapt.
 
-When you add resources, follow the commented examples:
+Resource patterns:
 
 - **User**: `azuread_user` with `given_name` + `surname` populated (required by SCIM provisioning to AWS) and a random initial password (`random_password`).
 - **Security group**: `azuread_group` (security-enabled, mail-disabled).
+- **Microsoft 365 (Unified) group**: `azuread_group` with `mail_enabled = true` + `types = ["Unified"]` — carries an email attribute.
 - **Membership**: `azuread_group_member`.
 - **SSO assignment**: `azuread_app_role_assignment` to the Azure AD Enterprise Application's `User` app role (e.g. AWS IAM Identity Center), so SCIM provisions the user + group membership to the downstream cloud.
+
+**Custom-domain email for a Unified group** is a manual post-step (Graph
+cannot write group proxyAddresses; only Exchange Online can). Use the
+helper:
+
+```bash
+terraform/azure/shared/set-group-email.sh <group-name> <email> [admin-upn]
+# e.g. ./set-group-email.sh developers developers@yourdomain.tld
+```
+
+It opens an Exchange Online sign-in and runs `Set-UnifiedGroup
+-PrimarySmtpAddress`. The change persists and is not terraform drift, but
+must be re-run if the group is destroyed and recreated.
 
 ### AWS IAM Identity Center (`terraform/aws/shared`)
 

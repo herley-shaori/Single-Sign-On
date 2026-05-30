@@ -46,6 +46,9 @@
 #   The custom domain must be a verified, Exchange-enabled accepted domain
 #   in the tenant. This is a manual step, outside terraform's lifecycle, and
 #   must be re-applied if the group is destroyed and recreated.
+#
+#   Helper: terraform/azure/shared/set-group-email.sh wraps the command, e.g.
+#     ./set-group-email.sh developers developers@<custom-domain>
 resource "azuread_group" "developers" {
   display_name     = "developers"
   description      = "developers group (managed by terraform)"
