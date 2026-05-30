@@ -3,12 +3,12 @@
 # file local to this folder. The file is referenced by var.sa_credentials_file
 # (default 'sa.json') and is git-ignored. NEVER commit the SA JSON.
 #
-# Workspace Directory API calls require the SA to use 'domain-wide
-# delegation' and impersonate a Workspace super admin. The admin email is
-# var.impersonated_user_email.
-#
-# customer_id = "my_customer" resolves to the Workspace customer that owns
-# the impersonated user, so no hardcoded customer ID is needed.
+# Two providers, both authed by the same SA file:
+#   - googleworkspace: Workspace Directory API (user/group). Needs domain-
+#     wide delegation + var.impersonated_user_email (a Workspace super
+#     admin).
+#   - google: GCP organization / project APIs (IAM bindings, etc.). The SA
+#     itself needs the relevant org/project IAM roles to operate.
 # =========================================================================
 
 provider "googleworkspace" {
@@ -19,4 +19,8 @@ provider "googleworkspace" {
   oauth_scopes = [
     "https://www.googleapis.com/auth/admin.directory.user",
   ]
+}
+
+provider "google" {
+  credentials = file("${path.module}/${var.sa_credentials_file}")
 }

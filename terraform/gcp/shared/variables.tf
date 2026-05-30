@@ -8,3 +8,8 @@ variable "impersonated_user_email" {
   description = "Email of a Google Workspace super admin to impersonate. Required by the Directory API; the SA cannot operate alone."
   type        = string
 }
+
+variable "gcp_project_id" {
+  description = "GCP project ID used as the scope for project-level IAM bindings (google_project_iam_member). Switch to org-level resources when an Organization exists."
+  type        = string
+}
