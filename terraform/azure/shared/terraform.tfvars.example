@@ -2,3 +2,8 @@
 # serves as the SSO assignment target (e.g. AWS IAM Identity Center).
 # Find it in Azure Portal -> Enterprise Applications -> <your app>.
 enterprise_app_client_id = "00000000-0000-0000-0000-000000000000"
+
+# Application (client) ID of the "Google Cloud / G Suite Connector by
+# Microsoft" enterprise application that provisions identities into Google
+# Workspace. Find it in Azure Portal -> Enterprise Applications -> that app.
+gcp_provisioning_app_client_id = "00000000-0000-0000-0000-000000000000"

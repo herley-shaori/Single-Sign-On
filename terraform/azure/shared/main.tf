@@ -25,6 +25,23 @@ locals {
   ])
 }
 
+# --- Reference: Google Cloud / G Suite Connector Service Principal ---------
+# The provisioning enterprise app that syncs identities into Google Workspace.
+# Groups must be ASSIGNED to this app to be provisioned, same as the AWS app.
+data "azuread_service_principal" "gcp_app" {
+  client_id = var.gcp_provisioning_app_client_id
+}
+
+# The Google connector exposes app roles "msiam_access" (internal SSO metadata)
+# and "Default Organization". Provisioning assignments use "Default
+# Organization"; pick it by display_name to avoid hardcoding the role GUID.
+locals {
+  gcp_app_role_id = one([
+    for r in data.azuread_service_principal.gcp_app.app_roles :
+    r.id if r.display_name == "Default Organization"
+  ])
+}
+
 # --- Microsoft 365 (Unified) group: developers ----------------------------
 # Unified group so it carries a mail attribute. mail_enabled = true is
 # required for the 'Unified' type.
@@ -158,4 +175,13 @@ resource "azuread_app_role_assignment" "datascientist_to_sso" {
   app_role_id         = local.sso_user_app_role_id
   principal_object_id = azuread_group.datascientist.object_id
   resource_object_id  = data.azuread_service_principal.sso_app.object_id
+}
+
+# Assign the developers group to the Google Workspace provisioning connector
+# so its members are provisioned into Google Workspace (SCIM). Only developers
+# is in scope for GCP.
+resource "azuread_app_role_assignment" "developers_to_gcp" {
+  app_role_id         = local.gcp_app_role_id
+  principal_object_id = azuread_group.developers.object_id
+  resource_object_id  = data.azuread_service_principal.gcp_app.object_id
 }
