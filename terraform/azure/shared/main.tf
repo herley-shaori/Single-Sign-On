@@ -177,11 +177,17 @@ resource "azuread_app_role_assignment" "datascientist_to_sso" {
   resource_object_id  = data.azuread_service_principal.sso_app.object_id
 }
 
-# Assign the developers group to the Google Workspace provisioning connector
-# so its members are provisioned into Google Workspace (SCIM). Only developers
-# is in scope for GCP.
+# Assign the developers and datascientist groups to the Google Workspace
+# provisioning connector so their members are provisioned into Google
+# Workspace (SCIM).
 resource "azuread_app_role_assignment" "developers_to_gcp" {
   app_role_id         = local.gcp_app_role_id
   principal_object_id = azuread_group.developers.object_id
+  resource_object_id  = data.azuread_service_principal.gcp_app.object_id
+}
+
+resource "azuread_app_role_assignment" "datascientist_to_gcp" {
+  app_role_id         = local.gcp_app_role_id
+  principal_object_id = azuread_group.datascientist.object_id
   resource_object_id  = data.azuread_service_principal.gcp_app.object_id
 }
