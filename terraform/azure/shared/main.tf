@@ -97,6 +97,29 @@ resource "azuread_group_member" "alice_datascientist" {
   member_object_id = azuread_user.alice.object_id
 }
 
+# --- User: bob ------------------------------------------------------------
+resource "random_password" "bob" {
+  length           = 20
+  special          = true
+  override_special = "!@#$%^&*()-_=+"
+}
+
+resource "azuread_user" "bob" {
+  user_principal_name   = "bob@catatancloud.dev"
+  display_name          = "Bob Santoso"
+  given_name            = "Bob"     # required for SCIM -> AWS
+  surname               = "Santoso" # required for SCIM -> AWS
+  mail_nickname         = "bob"
+  password              = random_password.bob.result
+  force_password_change = true
+}
+
+# bob is a member of the developers group.
+resource "azuread_group_member" "bob_developers" {
+  group_object_id  = azuread_group.developers.object_id
+  member_object_id = azuread_user.bob.object_id
+}
+
 # --- Example: a user with a random initial password -----------------------
 # resource "random_password" "example_user" {
 #   length           = 20
