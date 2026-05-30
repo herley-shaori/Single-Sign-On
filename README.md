@@ -29,7 +29,7 @@ sso/
     ├── azure/
     │   ├── dev/                # sample blob storage smoke test
     │   ├── prod/               # scaffolding only
-    │   └── shared/             # users (driven by users.json) + security groups + SSO app role assignments
+    │   └── shared/             # users + security groups + SSO app role assignments (defined directly in main.tf)
     └── gcp/
         └── shared/             # project-level IAM bindings for the 'developers' role mapping
 ```
@@ -43,11 +43,17 @@ folder).
 
 ### Azure AD (`terraform/azure/shared`)
 
-- **Users**: driven by `users.json`. Every user has `given_name` + `surname` populated (required by SCIM provisioning to AWS).
-- **Security groups**: `developers`, `data_scientists` (mail-disabled). Add more by appending to `local.managed_groups` in `main.tf`.
-- **Memberships**: declared per-user inside `users.json` under `group_memberships`.
-- **Initial passwords**: random per user, exposed as a sensitive map output (`user_initial_passwords`).
-- **SSO assignment**: each managed group is assigned to the Azure AD Enterprise Application's `User` app role (e.g. AWS IAM Identity Center), so SCIM provisions users + group membership to the downstream cloud.
+Users, security groups, memberships and SSO assignments are defined
+**directly as terraform resources** in `main.tf` (there is no external
+`users.json`). The file currently ships as a clean scaffold with commented
+examples — no live identity objects — ready for you to add your own.
+
+When you add resources, follow the commented examples:
+
+- **User**: `azuread_user` with `given_name` + `surname` populated (required by SCIM provisioning to AWS) and a random initial password (`random_password`).
+- **Security group**: `azuread_group` (security-enabled, mail-disabled).
+- **Membership**: `azuread_group_member`.
+- **SSO assignment**: `azuread_app_role_assignment` to the Azure AD Enterprise Application's `User` app role (e.g. AWS IAM Identity Center), so SCIM provisions the user + group membership to the downstream cloud.
 
 ### AWS IAM Identity Center (`terraform/aws/shared`)
 
@@ -83,17 +89,16 @@ Azure AD users + groups
                                              └─ would activate the IAM bindings already in GCP
 ```
 
-- Adding a user in `users.json` (and `terraform apply azure shared`) → user lands in Azure AD → SCIM syncs to AWS within ~40 min → AWS permission set assignment activates.
-- Removing a user from `users.json` → user destroyed in Azure AD → SCIM tombstones in AWS → all SSO access cuts off.
+- Adding a user resource in `terraform/azure/shared/main.tf` (and `terraform apply azure shared`) → user lands in Azure AD → SCIM syncs to AWS within ~40 min → AWS permission set assignment activates.
+- Removing the user resource → user destroyed in Azure AD → SCIM tombstones in AWS → all SSO access cuts off.
 - **For Google**: setting up an Azure AD Enterprise App "Google Cloud / G Suite Connector by Microsoft" with provisioning enabled is required for users to appear in Google Workspace automatically. Until that is wired up, the GCP IAM bindings still resolve to no live identity, so no one can actually log in to GCP using those bindings.
 
 ---
 
 ## First-time setup
 
-`*.tfvars` and `users.json` are operator-specific and **git-ignored**. Templates
-are tracked as `*.tfvars.example` and `users.json.example`. To set up a fresh
-checkout:
+`*.tfvars` files are operator-specific and **git-ignored**. Templates are
+tracked as `*.tfvars.example`. To set up a fresh checkout:
 
 ```bash
 # AWS
@@ -105,7 +110,6 @@ cp terraform/aws/shared/terraform.tfvars.example terraform/aws/shared/terraform.
 cp terraform/azure/dev/terraform.tfvars.example    terraform/azure/dev/terraform.tfvars
 cp terraform/azure/prod/terraform.tfvars.example   terraform/azure/prod/terraform.tfvars
 cp terraform/azure/shared/terraform.tfvars.example terraform/azure/shared/terraform.tfvars
-cp terraform/azure/shared/users.json.example       terraform/azure/shared/users.json
 
 # GCP
 cp terraform/gcp/shared/terraform.tfvars.example   terraform/gcp/shared/terraform.tfvars
@@ -140,8 +144,7 @@ cd terraform
 
 **Common workflows:**
 
-- Add or modify an Azure AD user: edit your local `terraform/azure/shared/users.json`, then `./apply.sh azure shared`.
-- Add a new Azure security group: append it to `local.managed_groups` in `terraform/azure/shared/main.tf`. Every group there is auto-created in Azure AD and SSO-assigned to AWS.
+- Add or modify an Azure AD user / group / membership / SSO assignment: edit `terraform/azure/shared/main.tf` directly (uncomment and adapt the example resources), then `./apply.sh azure shared`.
 - Add an AWS permission set: append an entry to `local.permission_sets` in `terraform/aws/shared/main.tf`. Each entry can target multiple managed policies and multiple groups.
 - Add a developer to the GCP `developers` role: append the email to `developers_emails` in your local `terraform/gcp/shared/terraform.tfvars`.
 
