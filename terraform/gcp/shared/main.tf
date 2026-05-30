@@ -7,25 +7,6 @@
 # wired up.
 # =========================================================================
 
-# --- Workspace user: Damian (legacy direct-create) ------------------------
-resource "random_password" "damian_initial" {
-  length           = 16
-  special          = true
-  override_special = "!@#$%^&*()-_=+"
-}
-
-resource "googleworkspace_user" "damian" {
-  primary_email = "damian@catatancloud.dev"
-
-  name {
-    given_name  = "Damian"
-    family_name = "Davis"
-  }
-
-  password                      = random_password.damian_initial.result
-  change_password_at_next_login = true
-}
-
 # --- IAM: 'developers' role mapping (project-level) -----------------------
 # Members of the 'developers' role get full Cloud Storage access on the
 # target project. Bind at project level here; switch to organization-level
