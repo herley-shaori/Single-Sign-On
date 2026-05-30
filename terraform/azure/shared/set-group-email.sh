@@ -21,8 +21,15 @@
 #                    May also be supplied via the EXO_ADMIN_UPN env var.
 #                    If omitted, Connect-ExchangeOnline prompts interactively.
 #
-# A browser window opens for sign-in (interactive auth). The onmicrosoft.com
-# address remains as a secondary alias — that is normal and unavoidable.
+# Authentication:
+#   By default this uses DEVICE-CODE auth: the script prints a short code and a
+#   URL (https://microsoft.com/devicelogin) for you to open in any browser and
+#   sign in. This avoids the OS-browser auto-launch path in MSAL, which throws
+#   PlatformNotSupportedException on newer macOS releases (e.g. macOS 26.x).
+#   Set EXO_INTERACTIVE=1 to force the old auto-launch browser flow instead.
+#
+# The onmicrosoft.com address remains as a secondary alias — that is normal
+# and unavoidable.
 #
 # Examples:
 #   ./set-group-email.sh developers developers@yourdomain.tld
@@ -55,13 +62,18 @@ command -v pwsh >/dev/null 2>&1 || {
 echo ">> Target group : $GROUP"
 echo ">> Primary email: $EMAIL"
 [[ -n "$ADMIN" ]] && echo ">> Sign in as   : $ADMIN" || echo ">> Sign in as   : (interactive prompt)"
-echo ">> A browser window will open for Exchange Online sign-in..."
+if [[ -n "${EXO_INTERACTIVE:-}" ]]; then
+  echo ">> A browser window will open for Exchange Online sign-in..."
+else
+  echo ">> Device-code sign-in: a code + URL will be printed below."
+fi
 
 # Pass values through the environment (no string interpolation into the
 # PowerShell source — avoids any quoting/injection surprises).
-GROUP="$GROUP" EMAIL="$EMAIL" ADMIN="$ADMIN" pwsh -NoProfile -Command '
+GROUP="$GROUP" EMAIL="$EMAIL" ADMIN="$ADMIN" EXO_INTERACTIVE="${EXO_INTERACTIVE:-}" pwsh -NoProfile -Command '
   $ErrorActionPreference = "Stop"
   $g = $env:GROUP; $e = $env:EMAIL; $a = $env:ADMIN
+  $useDevice = [string]::IsNullOrWhiteSpace($env:EXO_INTERACTIVE)
 
   if (-not (Get-Module -ListAvailable ExchangeOnlineManagement)) {
     Write-Host ">> Installing ExchangeOnlineManagement module (CurrentUser)..."
@@ -69,11 +81,10 @@ GROUP="$GROUP" EMAIL="$EMAIL" ADMIN="$ADMIN" pwsh -NoProfile -Command '
   }
   Import-Module ExchangeOnlineManagement
 
-  if ([string]::IsNullOrWhiteSpace($a)) {
-    Connect-ExchangeOnline -ShowBanner:$false
-  } else {
-    Connect-ExchangeOnline -UserPrincipalName $a -ShowBanner:$false
-  }
+  $connect = @{ ShowBanner = $false }
+  if ($useDevice)                              { $connect.Device = $true }
+  if (-not [string]::IsNullOrWhiteSpace($a))   { $connect.UserPrincipalName = $a }
+  Connect-ExchangeOnline @connect
 
   try {
     Set-UnifiedGroup -Identity $g -PrimarySmtpAddress $e
