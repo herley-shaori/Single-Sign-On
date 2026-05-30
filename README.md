@@ -5,6 +5,7 @@ Terraform configuration that wires up identity across three clouds with
 
 - **Azure AD (Microsoft Entra ID)** — users + security groups, source identity
 - **AWS IAM Identity Center** — receives users/groups via Azure SCIM, then maps them to permission sets
+- **Google Workspace** — receives users/groups via the Azure "Google Cloud / G Suite Connector" provisioning app (SCIM-style)
 - **GCP** — project-scoped IAM bindings, referencing the same identities
 
 Per cloud: split by environment (`dev`, `prod`) with a tenant-level
@@ -54,7 +55,9 @@ Resource patterns:
 - **Security group**: `azuread_group` (security-enabled, mail-disabled).
 - **Microsoft 365 (Unified) group**: `azuread_group` with `mail_enabled = true` + `types = ["Unified"]` — carries an email attribute.
 - **Membership**: `azuread_group_member`.
-- **SSO assignment**: `azuread_app_role_assignment` to the Azure AD Enterprise Application's `User` app role (e.g. AWS IAM Identity Center), so SCIM provisions the user + group membership to the downstream cloud.
+- **SSO / provisioning assignment**: `azuread_app_role_assignment` to a target Enterprise Application, so its provisioning engine syncs the group + members to the downstream cloud. Two targets are wired up via data sources (no hardcoded SP object IDs):
+  - **AWS IAM Identity Center** — assigned with its `User` app role (`var.enterprise_app_client_id`).
+  - **Google Cloud / G Suite Connector by Microsoft** — assigned with its `Default Organization` app role (`var.gcp_provisioning_app_client_id`), provisioning the members into Google Workspace.
 
 **Custom-domain email for a Unified group** is a manual post-step (Graph
 cannot write group proxyAddresses; only Exchange Online can). Use the
@@ -85,7 +88,9 @@ must be re-run if the group is destroyed and recreated.
 ### GCP (`terraform/gcp/shared`)
 
 - **IAM binding**: `roles/storage.admin` granted at the target GCP project (set via `var.gcp_project_id`) to every email in `var.developers_emails`.
-- **No user resources**: GCP terraform does NOT create users. The bindings sit inert in the project IAM policy until a matching Google identity exists; activation happens automatically once the user appears in Google (via SCIM or manual create).
+- **No identity resources**: GCP terraform does NOT create Google users or groups — those come from Azure via the Google Workspace connector (SCIM). This module only manages *authorization* (project IAM bindings), referencing identities by email.
+- The bindings sit inert in the project IAM policy until a matching Google identity exists; activation happens automatically once the identity is provisioned into Google Workspace.
+- Keep `var.developers_emails` aligned with the membership of the Azure source group so the authorization list does not drift from the source of truth.
 
 ---
 
@@ -96,16 +101,17 @@ Azure AD is the authoritative directory:
 ```
 Azure AD users + groups
         │
-        ├── SCIM (configured)        ──►  AWS IAM Identity Center
-        │                                    └─ permission sets activate per group
+        ├── SCIM             ──►  AWS IAM Identity Center
+        │                            └─ permission sets activate per assigned group
         │
-        └── SCIM (NOT configured yet) ──►  Google Workspace
-                                             └─ would activate the IAM bindings already in GCP
+        └── Google connector ──►  Google Workspace (users + groups)
+                                     └─ identities then satisfy the IAM bindings in GCP
 ```
 
 - Adding a user resource in `terraform/azure/shared/main.tf` (and `terraform apply azure shared`) → user lands in Azure AD → SCIM syncs to AWS within ~40 min → AWS permission set assignment activates.
 - Removing the user resource → user destroyed in Azure AD → SCIM tombstones in AWS → all SSO access cuts off.
-- **For Google**: setting up an Azure AD Enterprise App "Google Cloud / G Suite Connector by Microsoft" with provisioning enabled is required for users to appear in Google Workspace automatically. Until that is wired up, the GCP IAM bindings still resolve to no live identity, so no one can actually log in to GCP using those bindings.
+- **For Google**: provisioning runs through the Azure Enterprise App "Google Cloud / G Suite Connector by Microsoft". A group only syncs once it is assigned to that app (via `azuread_app_role_assignment`); members of an assigned group are created in Google Workspace, which in turn satisfies any matching GCP IAM binding. A group that is not assigned to the connector is intentionally absent from Google.
+- **Provisioning is one-directional** (Azure → downstream). Do not create or edit users/groups directly in AWS or Google: such objects are drift and may be overwritten or left orphaned. Identities created outside this flow (e.g. a native Google super-admin used for setup) are the only sanctioned exceptions.
 
 ---
 
