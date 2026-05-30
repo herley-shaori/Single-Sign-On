@@ -58,6 +58,45 @@ resource "azuread_group" "developers" {
   types            = ["Unified"]
 }
 
+# --- Microsoft 365 (Unified) group: datascientist -------------------------
+# Same shape as the developers group above. On creation the mail lands on the
+# tenant's default Exchange domain (datascientist@<tenant>.onmicrosoft.com);
+# the custom-domain address datascientist@catatancloud.dev must be set AFTER
+# apply with Exchange Online PowerShell (Graph/terraform cannot write it):
+#
+#   ./set-group-email.sh datascientist datascientist@catatancloud.dev admin@catatancloud.dev
+resource "azuread_group" "datascientist" {
+  display_name     = "datascientist"
+  description      = "datascientist group (managed by terraform)"
+  security_enabled = true
+  mail_enabled     = true
+  mail_nickname    = "datascientist"
+  types            = ["Unified"]
+}
+
+# --- User: alice ----------------------------------------------------------
+resource "random_password" "alice" {
+  length           = 20
+  special          = true
+  override_special = "!@#$%^&*()-_=+"
+}
+
+resource "azuread_user" "alice" {
+  user_principal_name   = "alice@catatancloud.dev"
+  display_name          = "Alice Pratama"
+  given_name            = "Alice"   # required for SCIM -> AWS
+  surname               = "Pratama" # required for SCIM -> AWS
+  mail_nickname         = "alice"
+  password              = random_password.alice.result
+  force_password_change = true
+}
+
+# alice is a member of the datascientist group.
+resource "azuread_group_member" "alice_datascientist" {
+  group_object_id  = azuread_group.datascientist.object_id
+  member_object_id = azuread_user.alice.object_id
+}
+
 # --- Example: a user with a random initial password -----------------------
 # resource "random_password" "example_user" {
 #   length           = 20
