@@ -1,142 +1,72 @@
 # =========================================================================
 # Azure Entra ID - SHARED (tenant-level, not per environment)
 #
-# Users, groups, memberships and SSO assignments are defined DIRECTLY as
-# terraform resources in this file. (The previous users.json-driven
-# approach has been removed.)
+# Users, groups, memberships and provisioning assignments are defined
+# DIRECTLY as terraform resources in this file. (The previous users.json-
+# driven approach has been removed.)
 #
 # Add new identity objects by uncommenting and adapting the examples below.
 # =========================================================================
 
-# --- Reference: existing Enterprise Application Service Principal ----------
-# The SSO enterprise app (AWS IAM Identity Center). Groups must be ASSIGNED to
-# this app to be provisioned via SCIM; an unassigned group is skipped with
-# SkipReason=NotEffectivelyEntitled.
-data "azuread_service_principal" "sso_app" {
-  client_id = var.enterprise_app_client_id
-}
+# --- Reference: SSO enterprise application (AWS IAM Identity Center) -------
+# Uncomment when assigning a group/user to the AWS SSO app. Groups must be
+# ASSIGNED to this app to be provisioned via SCIM; an unassigned group is
+# skipped with SkipReason=NotEffectivelyEntitled.
+#
+# data "azuread_service_principal" "sso_app" {
+#   client_id = var.enterprise_app_client_id
+# }
+#
+# # AWS IAM Identity Center exposes app roles "User" and "msiam_access".
+# # Pick "User" by display_name to avoid hardcoding the role GUID.
+# locals {
+#   sso_user_app_role_id = one([
+#     for r in data.azuread_service_principal.sso_app.app_roles :
+#     r.id if r.display_name == "User"
+#   ])
+# }
 
-# AWS IAM Identity Center exposes two app roles ("User" and "msiam_access").
-# Pick "User" by display_name to avoid hardcoding the role GUID.
-locals {
-  sso_user_app_role_id = one([
-    for r in data.azuread_service_principal.sso_app.app_roles :
-    r.id if r.display_name == "User"
-  ])
-}
+# --- Reference: Google Cloud / G Suite Connector by Microsoft -------------
+# Uncomment when assigning a group to the Google Workspace provisioning app.
+#
+# data "azuread_service_principal" "gcp_app" {
+#   client_id = var.gcp_provisioning_app_client_id
+# }
+#
+# # The Google connector exposes app roles "msiam_access" (internal SSO
+# # metadata) and "Default Organization". Provisioning assignments use
+# # "Default Organization"; pick it by display_name to avoid a hardcoded GUID.
+# locals {
+#   gcp_app_role_id = one([
+#     for r in data.azuread_service_principal.gcp_app.app_roles :
+#     r.id if r.display_name == "Default Organization"
+#   ])
+# }
 
-# --- Reference: Google Cloud / G Suite Connector Service Principal ---------
-# The provisioning enterprise app that syncs identities into Google Workspace.
-# Groups must be ASSIGNED to this app to be provisioned, same as the AWS app.
-data "azuread_service_principal" "gcp_app" {
-  client_id = var.gcp_provisioning_app_client_id
-}
-
-# The Google connector exposes app roles "msiam_access" (internal SSO metadata)
-# and "Default Organization". Provisioning assignments use "Default
-# Organization"; pick it by display_name to avoid hardcoding the role GUID.
-locals {
-  gcp_app_role_id = one([
-    for r in data.azuread_service_principal.gcp_app.app_roles :
-    r.id if r.display_name == "Default Organization"
-  ])
-}
-
-# --- Microsoft 365 (Unified) group: developers ----------------------------
-# Unified group so it carries a mail attribute. mail_enabled = true is
-# required for the 'Unified' type.
+# --- Example: Microsoft 365 (Unified) group -------------------------------
+# Unified group so it carries a mail attribute. mail_enabled = true and
+# types = ["Unified"] are required for the Unified type.
 #
 # IMPORTANT — the group's email domain:
 #   On creation the mail lands on the tenant's default Exchange domain
-#   (developers@<tenant>.onmicrosoft.com). Changing it to a custom domain
-#   (developers@<custom-domain>) CANNOT be done through terraform, Microsoft
-#   Graph, or the Azure CLI: Graph rejects writing group proxyAddresses for
-#   ANY caller — app-only AND delegated admin tokens both get
-#   "The requesting application is not authorized to set group proxy
-#   addresses." The mail/PrimarySmtpAddress of a Microsoft 365 group is
-#   Exchange-authoritative and can only be changed with Exchange Online
-#   PowerShell, signed in as an Exchange admin:
+#   (<nickname>@<tenant>.onmicrosoft.com). Changing it to a custom domain
+#   CANNOT be done through terraform, Microsoft Graph, or the Azure CLI:
+#   Graph rejects writing group proxyAddresses for ANY caller. The
+#   mail/PrimarySmtpAddress of a Microsoft 365 group is Exchange-
+#   authoritative and can only be changed with Exchange Online PowerShell,
+#   signed in as an Exchange admin. This is a manual step, outside
+#   terraform's lifecycle, and must be re-applied if the group is destroyed
+#   and recreated. Helper: terraform/azure/shared/set-group-email.sh, e.g.
+#     ./set-group-email.sh <group> <group>@<custom-domain> <admin-upn>
 #
-#     Connect-ExchangeOnline -UserPrincipalName admin@<tenant>
-#     Set-UnifiedGroup -Identity developers \
-#       -PrimarySmtpAddress developers@<custom-domain>
-#
-#   The custom domain must be a verified, Exchange-enabled accepted domain
-#   in the tenant. This is a manual step, outside terraform's lifecycle, and
-#   must be re-applied if the group is destroyed and recreated.
-#
-#   Helper: terraform/azure/shared/set-group-email.sh wraps the command, e.g.
-#     ./set-group-email.sh developers developers@<custom-domain>
-resource "azuread_group" "developers" {
-  display_name     = "developers"
-  description      = "developers group (managed by terraform)"
-  security_enabled = true
-  mail_enabled     = true
-  mail_nickname    = "developers"
-  types            = ["Unified"]
-}
-
-# --- Microsoft 365 (Unified) group: datascientist -------------------------
-# Same shape as the developers group above. On creation the mail lands on the
-# tenant's default Exchange domain (datascientist@<tenant>.onmicrosoft.com);
-# the custom-domain address datascientist@catatancloud.dev must be set AFTER
-# apply with Exchange Online PowerShell (Graph/terraform cannot write it):
-#
-#   ./set-group-email.sh datascientist datascientist@catatancloud.dev admin@catatancloud.dev
-resource "azuread_group" "datascientist" {
-  display_name     = "datascientist"
-  description      = "datascientist group (managed by terraform)"
-  security_enabled = true
-  mail_enabled     = true
-  mail_nickname    = "datascientist"
-  types            = ["Unified"]
-}
-
-# --- User: alice ----------------------------------------------------------
-resource "random_password" "alice" {
-  length           = 20
-  special          = true
-  override_special = "!@#$%^&*()-_=+"
-}
-
-resource "azuread_user" "alice" {
-  user_principal_name   = "alice@catatancloud.dev"
-  display_name          = "Alice Pratama"
-  given_name            = "Alice"   # required for SCIM -> AWS
-  surname               = "Pratama" # required for SCIM -> AWS
-  mail_nickname         = "alice"
-  password              = random_password.alice.result
-  force_password_change = true
-}
-
-# alice is a member of the datascientist group.
-resource "azuread_group_member" "alice_datascientist" {
-  group_object_id  = azuread_group.datascientist.object_id
-  member_object_id = azuread_user.alice.object_id
-}
-
-# --- User: bob ------------------------------------------------------------
-resource "random_password" "bob" {
-  length           = 20
-  special          = true
-  override_special = "!@#$%^&*()-_=+"
-}
-
-resource "azuread_user" "bob" {
-  user_principal_name   = "bob@catatancloud.dev"
-  display_name          = "Bob Santoso"
-  given_name            = "Bob"     # required for SCIM -> AWS
-  surname               = "Santoso" # required for SCIM -> AWS
-  mail_nickname         = "bob"
-  password              = random_password.bob.result
-  force_password_change = true
-}
-
-# bob is a member of the developers group.
-resource "azuread_group_member" "bob_developers" {
-  group_object_id  = azuread_group.developers.object_id
-  member_object_id = azuread_user.bob.object_id
-}
+# resource "azuread_group" "example_group" {
+#   display_name     = "example"
+#   description      = "example group (managed by terraform)"
+#   security_enabled = true
+#   mail_enabled     = true
+#   mail_nickname    = "example"
+#   types            = ["Unified"]
+# }
 
 # --- Example: a user with a random initial password -----------------------
 # resource "random_password" "example_user" {
@@ -157,37 +87,23 @@ resource "azuread_group_member" "bob_developers" {
 
 # --- Example: group membership --------------------------------------------
 # resource "azuread_group_member" "example_membership" {
-#   group_object_id  = azuread_group.developers.object_id
+#   group_object_id  = azuread_group.example_group.object_id
 #   member_object_id = azuread_user.example_user.object_id
 # }
 
-# --- Assign groups to the SSO enterprise app ------------------------------
+# --- Example: assign a group to the AWS SSO enterprise app ----------------
 # Without this assignment the group is skipped by SCIM provisioning
-# (SkipReason=NotEffectivelyEntitled). Assigning the group with the "User"
-# app role brings it into entitlement and lets it provision to AWS.
-resource "azuread_app_role_assignment" "developers_to_sso" {
-  app_role_id         = local.sso_user_app_role_id
-  principal_object_id = azuread_group.developers.object_id
-  resource_object_id  = data.azuread_service_principal.sso_app.object_id
-}
+# (SkipReason=NotEffectivelyEntitled).
+#
+# resource "azuread_app_role_assignment" "example_to_sso" {
+#   app_role_id         = local.sso_user_app_role_id
+#   principal_object_id = azuread_group.example_group.object_id
+#   resource_object_id  = data.azuread_service_principal.sso_app.object_id
+# }
 
-resource "azuread_app_role_assignment" "datascientist_to_sso" {
-  app_role_id         = local.sso_user_app_role_id
-  principal_object_id = azuread_group.datascientist.object_id
-  resource_object_id  = data.azuread_service_principal.sso_app.object_id
-}
-
-# Assign the developers and datascientist groups to the Google Workspace
-# provisioning connector so their members are provisioned into Google
-# Workspace (SCIM).
-resource "azuread_app_role_assignment" "developers_to_gcp" {
-  app_role_id         = local.gcp_app_role_id
-  principal_object_id = azuread_group.developers.object_id
-  resource_object_id  = data.azuread_service_principal.gcp_app.object_id
-}
-
-resource "azuread_app_role_assignment" "datascientist_to_gcp" {
-  app_role_id         = local.gcp_app_role_id
-  principal_object_id = azuread_group.datascientist.object_id
-  resource_object_id  = data.azuread_service_principal.gcp_app.object_id
-}
+# --- Example: assign a group to the Google Workspace connector ------------
+# resource "azuread_app_role_assignment" "example_to_gcp" {
+#   app_role_id         = local.gcp_app_role_id
+#   principal_object_id = azuread_group.example_group.object_id
+#   resource_object_id  = data.azuread_service_principal.gcp_app.object_id
+# }
