@@ -26,9 +26,26 @@
 
 # --- Microsoft 365 (Unified) group: developers ----------------------------
 # Unified group so it carries a mail attribute. mail_enabled = true is
-# required for the 'Unified' type. The mail domain is assigned by the tenant
-# from an Exchange-enabled domain; to land on a custom domain that domain
-# must be an Exchange Online accepted domain.
+# required for the 'Unified' type.
+#
+# IMPORTANT — the group's email domain:
+#   On creation the mail lands on the tenant's default Exchange domain
+#   (developers@<tenant>.onmicrosoft.com). Changing it to a custom domain
+#   (developers@<custom-domain>) CANNOT be done through terraform, Microsoft
+#   Graph, or the Azure CLI: Graph rejects writing group proxyAddresses for
+#   ANY caller — app-only AND delegated admin tokens both get
+#   "The requesting application is not authorized to set group proxy
+#   addresses." The mail/PrimarySmtpAddress of a Microsoft 365 group is
+#   Exchange-authoritative and can only be changed with Exchange Online
+#   PowerShell, signed in as an Exchange admin:
+#
+#     Connect-ExchangeOnline -UserPrincipalName admin@<tenant>
+#     Set-UnifiedGroup -Identity developers \
+#       -PrimarySmtpAddress developers@<custom-domain>
+#
+#   The custom domain must be a verified, Exchange-enabled accepted domain
+#   in the tenant. This is a manual step, outside terraform's lifecycle, and
+#   must be re-applied if the group is destroyed and recreated.
 resource "azuread_group" "developers" {
   display_name     = "developers"
   description      = "developers group (managed by terraform)"
