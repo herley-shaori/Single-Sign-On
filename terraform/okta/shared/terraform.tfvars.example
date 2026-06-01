@@ -23,3 +23,7 @@ okta_private_key_file = "okta_api_key.pem"
 # Okta app id (0oa...) of the AWS IAM Identity Center integration app, so the
 # aws-developers group can be assigned to it. Leave "" to skip the assignment.
 aws_app_id = "0oaXXXXXXXXXXXXXXXXX"
+
+# Okta app id (0oa...) of the Azure / Office 365 integration app, so the
+# azure-developers group can be assigned to it. Leave "" to skip.
+azure_app_id = "0oaXXXXXXXXXXXXXXXXX"

@@ -63,6 +63,14 @@ resource "okta_app_group_assignment" "aws_developers_to_aws" {
   group_id = okta_group.aws_developers.id
 }
 
+# Assign the azure-developers GROUP to the Azure / Office 365 app, so its
+# members are in scope for provisioning to Azure AD.
+resource "okta_app_group_assignment" "azure_developers_to_azure" {
+  count    = var.azure_app_id == "" ? 0 : 1
+  app_id   = var.azure_app_id
+  group_id = okta_group.azure_developers.id
+}
+
 # --- Example: a user --------------------------------------------------------
 # resource "okta_user" "example_user" {
 #   first_name = "Example"          # required by SCIM -> downstream

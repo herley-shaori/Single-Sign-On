@@ -46,3 +46,9 @@ variable "aws_app_id" {
   type        = string
   default     = ""
 }
+
+variable "azure_app_id" {
+  description = "Okta application id (0oa...) of the Azure / Office 365 integration app. Assigning the azure-developers group to this app puts its members in scope for provisioning to Azure AD. Empty disables the assignment."
+  type        = string
+  default     = ""
+}
