@@ -16,12 +16,14 @@
 # Add identity objects by uncommenting and adapting the examples below.
 # =========================================================================
 
-# --- Group: developers ----------------------------------------------------
+# --- Group: aws-developers -------------------------------------------------
 # Okta groups carry only name + description (no email attribute). The NAME is
 # the contract key downstream (e.g. AWS matches the SCIM group by this name).
-resource "okta_group" "developers" {
-  name        = "developers"
-  description = "developers group (managed by terraform; source of truth)"
+# Cloud-prefixed so each target gets its own group (this one is for AWS; on
+# the Google side the analogous group would be aws-developers@catatancloud.dev).
+resource "okta_group" "aws_developers" {
+  name        = "aws-developers"
+  description = "AWS developers group (managed by terraform; source of truth)"
 }
 
 # --- User: alice -----------------------------------------------------------
@@ -32,9 +34,9 @@ resource "okta_user" "alice" {
   email      = "alice@catatancloud.dev"
 }
 
-# alice is a member of the developers group.
-resource "okta_group_memberships" "developers_members" {
-  group_id = okta_group.developers.id
+# alice is a member of the aws-developers group.
+resource "okta_group_memberships" "aws_developers_members" {
+  group_id = okta_group.aws_developers.id
   users    = [okta_user.alice.id]
 }
 
