@@ -16,6 +16,28 @@
 # Add identity objects by uncommenting and adapting the examples below.
 # =========================================================================
 
+# --- Group: developers ----------------------------------------------------
+# Okta groups carry only name + description (no email attribute). The NAME is
+# the contract key downstream (e.g. AWS matches the SCIM group by this name).
+resource "okta_group" "developers" {
+  name        = "developers"
+  description = "developers group (managed by terraform; source of truth)"
+}
+
+# --- User: alice -----------------------------------------------------------
+resource "okta_user" "alice" {
+  first_name = "Alice"   # required by SCIM -> downstream
+  last_name  = "Pratama" # required by SCIM -> downstream
+  login      = "alice@catatancloud.dev"
+  email      = "alice@catatancloud.dev"
+}
+
+# alice is a member of the developers group.
+resource "okta_group_memberships" "developers_members" {
+  group_id = okta_group.developers.id
+  users    = [okta_user.alice.id]
+}
+
 # --- Example: a user --------------------------------------------------------
 # resource "okta_user" "example_user" {
 #   first_name = "Example"          # required by SCIM -> downstream
