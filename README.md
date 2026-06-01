@@ -1,14 +1,19 @@
-# SSO — Terraform (AWS + Azure + GCP)
+# SSO — Terraform (Okta source → AWS + Azure + GCP)
 
-Terraform configuration that wires up identity across three clouds with
-**Azure AD as the single source of truth**:
+Terraform configuration that wires up identity across clouds with
+**Okta as the single source of truth**:
 
-- **Azure AD (Microsoft Entra ID)** — users + security groups, source identity
-- **AWS IAM Identity Center** — receives users/groups via Azure SCIM, then maps them to permission sets
-- **Google Workspace** — receives users/groups via the Azure "Google Cloud / G Suite Connector" provisioning app (SCIM-style)
-- **GCP** — project-scoped IAM bindings, referencing the same identities
+- **Okta** — users + groups, the authoritative source identity (`terraform/okta/shared`)
+- **AWS IAM Identity Center** — receives users/groups from Okta (SCIM), then maps them to permission sets
+- **Azure AD (Microsoft Entra ID)** — receives users/groups from Okta (downstream target)
+- **Google Workspace / GCP** — receives users/groups from Okta (SCIM); GCP project IAM bindings reference those identities
 
-Per cloud: split by environment (`dev`, `prod`) with a tenant-level
+> **Migration note:** Azure AD was previously the source of truth. It is being
+> repositioned as a downstream **target** of Okta. The target-side modules
+> (`terraform/aws`, `terraform/azure`, `terraform/gcp`) are left as-is for now;
+> wiring them to consume Okta is follow-up work.
+
+Layout: by provider, split by environment (`dev`, `prod`) with a tenant-level
 `shared` folder for resources that are not per-environment.
 
 ---
@@ -21,8 +26,10 @@ sso/
 ├── README.md
 ├── LICENSE
 └── terraform/
-    ├── apply.sh                # ./apply.sh   <aws|azure|gcp> <dev|prod|shared>
-    ├── destroy.sh              # ./destroy.sh <aws|azure|gcp> <dev|prod|shared>
+    ├── apply.sh                # ./apply.sh   <aws|azure|gcp|okta> <dev|prod|shared>
+    ├── destroy.sh              # ./destroy.sh <aws|azure|gcp|okta> <dev|prod|shared>
+    ├── okta/
+    │   └── shared/             # SOURCE OF TRUTH: users + groups (Okta management API)
     ├── aws/
     │   ├── dev/                # scaffolding only
     │   ├── prod/               # scaffolding only
@@ -30,7 +37,7 @@ sso/
     ├── azure/
     │   ├── dev/                # sample blob storage smoke test
     │   ├── prod/               # scaffolding only
-    │   └── shared/             # users + security groups + SSO app role assignments (defined directly in main.tf)
+    │   └── shared/             # (legacy source; being repositioned as an Okta target)
     └── gcp/
         └── shared/             # project-level IAM bindings for the 'developers' role mapping
 ```
@@ -42,7 +49,27 @@ folder).
 
 ## What is configured
 
-### Azure AD (`terraform/azure/shared`)
+### Okta — source of truth (`terraform/okta/shared`)
+
+The authoritative directory. Users and groups are defined here and provisioned
+**outward** to the downstream targets (AWS, Azure/Entra, GCP) through Okta's
+provisioning integrations. The target modules consume these identities; they
+do not define them.
+
+- **Provider auth:** OAuth 2.0 service app with the `private_key_jwt` grant
+  (no static API token). The org enforces **DPoP**; the `okta/okta` provider
+  (v4.20+) handles the DPoP proof + nonce automatically.
+- **Resource patterns** (commented examples in `main.tf`): `okta_user`
+  (`first_name` + `last_name` + `login`/`email`, required by SCIM),
+  `okta_group`, `okta_group_memberships`, and `okta_app_group_assignment` to
+  put a group in scope for a downstream cloud's provisioning app.
+- **Contract with targets** (keep stable so targets never depend on Okta
+  internals): AWS keys off group **name**, GCP keys off user **email**, every
+  user carries login/email + first/last name.
+
+Credentials are never committed — see the [Okta credential setup](#4-okta--oauth-service-app-private_key_jwt-git-ignored-pem).
+
+### Azure AD (`terraform/azure/shared`) — legacy source, repositioning as a target
 
 Users, security groups, memberships and SSO assignments are defined
 **directly as terraform resources** in `main.tf` (there is no external
@@ -96,22 +123,24 @@ must be re-run if the group is destroyed and recreated.
 
 ## Single source of truth pattern
 
-Azure AD is the authoritative directory:
+Okta is the authoritative directory:
 
 ```
-Azure AD users + groups
+Okta users + groups   (terraform/okta/shared)
         │
-        ├── SCIM             ──►  AWS IAM Identity Center
-        │                            └─ permission sets activate per assigned group
+        ├── SCIM / app assignment ──►  AWS IAM Identity Center
+        │                                  └─ permission sets activate per assigned group
         │
-        └── Google connector ──►  Google Workspace (users + groups)
-                                     └─ identities then satisfy the IAM bindings in GCP
+        ├── SCIM / app assignment ──►  Azure AD (Entra)   [target wiring = follow-up]
+        │
+        └── SCIM / app assignment ──►  Google Workspace (users + groups)
+                                           └─ identities then satisfy the IAM bindings in GCP
 ```
 
-- Adding a user resource in `terraform/azure/shared/main.tf` (and `terraform apply azure shared`) → user lands in Azure AD → SCIM syncs to AWS within ~40 min → AWS permission set assignment activates.
-- Removing the user resource → user destroyed in Azure AD → SCIM tombstones in AWS → all SSO access cuts off.
-- **For Google**: provisioning runs through the Azure Enterprise App "Google Cloud / G Suite Connector by Microsoft". A group only syncs once it is assigned to that app (via `azuread_app_role_assignment`); members of an assigned group are created in Google Workspace, which in turn satisfies any matching GCP IAM binding. A group that is not assigned to the connector is intentionally absent from Google.
-- **Provisioning is one-directional** (Azure → downstream). Do not create or edit users/groups directly in AWS or Google: such objects are drift and may be overwritten or left orphaned. Identities created outside this flow (e.g. a native Google super-admin used for setup) are the only sanctioned exceptions.
+- Define a user/group in `terraform/okta/shared/main.tf` → `./apply.sh okta shared` → it lands in Okta → Okta provisions to each cloud whose app the group is assigned to (typically within minutes to ~40 min).
+- Remove the resource → destroyed in Okta → Okta deprovisions (tombstones) downstream → access cuts off.
+- A group only reaches a given cloud once it is assigned to that cloud's provisioning app in Okta (`okta_app_group_assignment`). An unassigned group is intentionally absent downstream.
+- **Provisioning is one-directional** (Okta → downstream). Do not create or edit users/groups directly in AWS / Azure / Google: such objects are drift and may be overwritten or left orphaned. Identities created outside this flow (e.g. a native Google super-admin used for setup) are the only sanctioned exceptions.
 
 ---
 
@@ -136,6 +165,12 @@ cp terraform/gcp/shared/terraform.tfvars.example   terraform/gcp/shared/terrafor
 # Plus drop your Google Workspace service account JSON at:
 #   terraform/gcp/shared/sa.json
 # (the file is git-ignored by multiple defense-in-depth patterns)
+
+# Okta (source of truth)
+cp terraform/okta/shared/terraform.tfvars.example  terraform/okta/shared/terraform.tfvars
+# Plus drop the OAuth service-app private key (PEM, PKCS#8) at:
+#   terraform/okta/shared/okta_api_key.pem
+# (git-ignored by **/okta_api_key.pem, *.pem, *.key)
 ```
 
 Then fill in the placeholders inside each copied file with your own values.
@@ -146,6 +181,9 @@ Then fill in the placeholders inside each copied file with your own values.
 
 ```bash
 cd terraform
+
+# Okta (source of truth) - requires terraform/okta/shared/okta_api_key.pem
+./apply.sh okta shared
 
 # AWS - uses the AWS CLI profile from your tfvars
 ./apply.sh aws shared
@@ -164,7 +202,7 @@ cd terraform
 
 **Common workflows:**
 
-- Add or modify an Azure AD user / group / membership / SSO assignment: edit `terraform/azure/shared/main.tf` directly (uncomment and adapt the example resources), then `./apply.sh azure shared`.
+- Add or modify a user / group / membership in the **source of truth**: edit `terraform/okta/shared/main.tf` (uncomment and adapt the example resources), then `./apply.sh okta shared`. Downstream clouds pick it up via provisioning.
 - Add an AWS permission set: append an entry to `local.permission_sets` in `terraform/aws/shared/main.tf`. Each entry can target multiple managed policies and multiple groups.
 - Add a developer to the GCP `developers` role: append the email to `developers_emails` in your local `terraform/gcp/shared/terraform.tfvars`.
 
@@ -218,9 +256,49 @@ Credentials: drop the `credentials` field from the provider block and run
 `gcloud auth application-default login --scopes='...admin.directory.user'`
 signed in as a Workspace super admin.
 
+### 4. Okta — OAuth service app, private_key_jwt (git-ignored PEM)
+
+The Okta provider authenticates with an **OAuth 2.0 service app** using the
+`private_key_jwt` grant — there is no static API token.
+
+1. In Okta Admin, create an **API Services** app. Note its **Client ID** and
+   your **org** (e.g. `trial-000000.okta.com` → org_name `trial-000000`,
+   base_url `okta.com`).
+2. Generate an RSA keypair and register the **public** key (JWK) on the app.
+   Keep the **private** key as PEM (PKCS#8). Convert an OpenSSH key with:
+   ```bash
+   cp ~/.ssh/id_rsa terraform/okta/shared/okta_api_key.pem
+   chmod 600 terraform/okta/shared/okta_api_key.pem
+   ssh-keygen -p -N "" -m PKCS8 -f terraform/okta/shared/okta_api_key.pem
+   ```
+   The PEM lands at `terraform/okta/shared/okta_api_key.pem` and is git-ignored
+   by `**/okta_api_key.pem`, `*.pem`, `*.key`. **Never commit it**; never inline
+   the key into a `.tf`/`.tfvars` file.
+3. **Grant API scopes** to the app (Applications → app → *Okta API Scopes*):
+   `okta.users.manage` and `okta.groups.manage` (these include read). Without
+   the grant, token requests fail with `consent_required`.
+4. Non-secret identifiers (`okta_org_name`, `okta_base_url`, `okta_client_id`,
+   `okta_scopes`) go in `terraform/okta/shared/terraform.tfvars` (git-ignored).
+
+`apply.sh` / `destroy.sh` refuse to run for `okta` if `okta_api_key.pem` is
+missing in the target folder. If your org enforces DPoP, no extra config is
+needed — the provider handles the DPoP proof/nonce; otherwise leave the app's
+DPoP setting as you wish.
+
 ---
 
 ## Required permissions (one-time setup per identity)
+
+### Okta service app — granted API scopes
+
+| Scope                  | Used for                                  |
+|------------------------|-------------------------------------------|
+| `okta.users.manage`    | create / update / deactivate users        |
+| `okta.groups.manage`   | create groups, manage memberships         |
+
+(The `.manage` scopes include read. Grant them under Applications → the app →
+*Okta API Scopes*.)
+
 
 ### Azure SP — Microsoft Graph application permissions (admin-consented)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # Usage: ./destroy.sh <cloud> <env>
-#   cloud : aws | azure | gcp
+#   cloud : aws | azure | gcp | okta
 #   env   : dev | prod | shared
 #
 # When env=prod, the operator must type the literal string "destroy prod"
@@ -10,7 +10,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <aws|azure|gcp> <dev|prod|shared>" >&2
+  echo "Usage: $0 <aws|azure|gcp|okta> <dev|prod|shared>" >&2
   exit 1
 }
 
@@ -19,8 +19,8 @@ usage() {
 CLOUD="$1"
 ENV="$2"
 
-case "$CLOUD" in aws|azure|gcp)   ;; *) echo "ERR: cloud must be 'aws', 'azure', or 'gcp' (got '$CLOUD')" >&2; exit 1 ;; esac
-case "$ENV"   in dev|prod|shared) ;; *) echo "ERR: env must be 'dev', 'prod', or 'shared' (got '$ENV')"  >&2; exit 1 ;; esac
+case "$CLOUD" in aws|azure|gcp|okta) ;; *) echo "ERR: cloud must be 'aws', 'azure', 'gcp', or 'okta' (got '$CLOUD')" >&2; exit 1 ;; esac
+case "$ENV"   in dev|prod|shared)    ;; *) echo "ERR: env must be 'dev', 'prod', or 'shared' (got '$ENV')"  >&2; exit 1 ;; esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="$SCRIPT_DIR/$CLOUD/$ENV"
@@ -36,6 +36,13 @@ fi
 if [[ "$CLOUD" == "gcp" ]]; then
   if [[ ! -f "$TARGET_DIR/sa.json" ]]; then
     echo "ERR: GCP service account file not found at $TARGET_DIR/sa.json" >&2
+    exit 1
+  fi
+fi
+
+if [[ "$CLOUD" == "okta" ]]; then
+  if [[ ! -f "$TARGET_DIR/okta_api_key.pem" ]]; then
+    echo "ERR: Okta API private key not found at $TARGET_DIR/okta_api_key.pem" >&2
     exit 1
   fi
 fi

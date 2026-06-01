@@ -31,6 +31,13 @@ credentials.json
 **/*-credentials.json
 **/.credentials.json
 
+# Okta API service-app private key (PEM, private_key_jwt). Defense in depth:
+# any PEM and the canonical key filename are ignored everywhere.
+**/okta_api_key.pem
+**/okta-private-key.pem
+*.pem
+*.key
+
 # ---- Operator-specific values (kept local, never committed) ---------------
 # Each *.tfvars carries account IDs, profile names, domain names, project
 # IDs and similar identifiers that are unique to a specific operator. Track

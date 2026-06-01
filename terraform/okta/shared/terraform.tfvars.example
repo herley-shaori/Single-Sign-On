@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars (git-ignored) and fill in your own values.
+# org_name + base_url + client_id are operator-specific identifiers.
+
+okta_org_name  = "trial-000000"          # subdomain only, no ".okta.com"
+okta_base_url  = "okta.com"              # "oktapreview.com" for preview orgs
+okta_client_id = "0oaXXXXXXXXXXXXXXXXX"   # OAuth service app (client) ID
+
+# Scopes must also be GRANTED to the service app in the Okta Admin console
+# (Applications -> the app -> Okta API Scopes). The .manage scopes include read.
+okta_scopes = [
+  "okta.users.manage",
+  "okta.groups.manage",
+]
+
+# PEM (PKCS#8) RSA private key whose public half is registered on the app.
+# The file itself is git-ignored; only its name is referenced here.
+okta_private_key_file = "okta_api_key.pem"
+# okta_private_key_id = "<kid>"   # optional; usually not needed

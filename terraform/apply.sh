@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # Usage: ./apply.sh <cloud> <env>
-#   cloud : aws | azure | gcp
+#   cloud : aws | azure | gcp | okta
 #   env   : dev | prod | shared
 #
 # 'shared' is used for tenant-level resources that are not per environment
-# (e.g. azure/shared for the group/user/SSO assignments shared across envs).
+# (e.g. okta/shared, the source of truth for users/groups).
 #
 # Examples:
 #   ./apply.sh aws   dev
 #   ./apply.sh azure prod
 #   ./apply.sh azure shared
 #   ./apply.sh gcp   shared
+#   ./apply.sh okta  shared
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <aws|azure|gcp> <dev|prod|shared>" >&2
+  echo "Usage: $0 <aws|azure|gcp|okta> <dev|prod|shared>" >&2
   exit 1
 }
 
@@ -25,8 +26,8 @@ usage() {
 CLOUD="$1"
 ENV="$2"
 
-case "$CLOUD" in aws|azure|gcp)   ;; *) echo "ERR: cloud must be 'aws', 'azure', or 'gcp' (got '$CLOUD')" >&2; exit 1 ;; esac
-case "$ENV"   in dev|prod|shared) ;; *) echo "ERR: env must be 'dev', 'prod', or 'shared' (got '$ENV')"  >&2; exit 1 ;; esac
+case "$CLOUD" in aws|azure|gcp|okta) ;; *) echo "ERR: cloud must be 'aws', 'azure', 'gcp', or 'okta' (got '$CLOUD')" >&2; exit 1 ;; esac
+case "$ENV"   in dev|prod|shared)    ;; *) echo "ERR: env must be 'dev', 'prod', or 'shared' (got '$ENV')"  >&2; exit 1 ;; esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="$SCRIPT_DIR/$CLOUD/$ENV"
@@ -58,6 +59,15 @@ if [[ "$CLOUD" == "gcp" ]]; then
   if [[ ! -f "$TARGET_DIR/sa.json" ]]; then
     echo "ERR: GCP service account file not found at $TARGET_DIR/sa.json" >&2
     echo "     Place the JSON there (the file is git-ignored)."          >&2
+    exit 1
+  fi
+fi
+
+# --- Guard: Okta needs the private-key PEM file in the target dir -------------
+if [[ "$CLOUD" == "okta" ]]; then
+  if [[ ! -f "$TARGET_DIR/okta_api_key.pem" ]]; then
+    echo "ERR: Okta API private key not found at $TARGET_DIR/okta_api_key.pem" >&2
+    echo "     Place the PEM (PKCS#8) there (the file is git-ignored)."        >&2
     exit 1
   fi
 fi
