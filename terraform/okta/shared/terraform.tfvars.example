@@ -10,9 +10,14 @@ okta_client_id = "0oaXXXXXXXXXXXXXXXXX"   # OAuth service app (client) ID
 okta_scopes = [
   "okta.users.manage",
   "okta.groups.manage",
+  "okta.apps.manage", # needed to assign groups to downstream apps
 ]
 
 # PEM (PKCS#8) RSA private key whose public half is registered on the app.
 # The file itself is git-ignored; only its name is referenced here.
 okta_private_key_file = "okta_api_key.pem"
 # okta_private_key_id = "<kid>"   # optional; usually not needed
+
+# Okta app id (0oa...) of the AWS IAM Identity Center integration app, so the
+# aws-developers group can be assigned to it. Leave "" to skip the assignment.
+aws_app_id = "0oaXXXXXXXXXXXXXXXXX"

@@ -40,6 +40,16 @@ resource "okta_group_memberships" "aws_developers_members" {
   users    = [okta_user.alice.id]
 }
 
+# --- Assign the aws-developers GROUP (not individual users) to the AWS SSO ---
+# app. This is what puts the group's members in scope for provisioning to AWS
+# IAM Identity Center. Assigning the group (not the person) keeps Okta the
+# single source of truth for membership.
+resource "okta_app_group_assignment" "aws_developers_to_aws" {
+  count    = var.aws_app_id == "" ? 0 : 1
+  app_id   = var.aws_app_id
+  group_id = okta_group.aws_developers.id
+}
+
 # --- Example: a user --------------------------------------------------------
 # resource "okta_user" "example_user" {
 #   first_name = "Example"          # required by SCIM -> downstream

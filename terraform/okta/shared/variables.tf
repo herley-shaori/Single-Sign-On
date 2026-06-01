@@ -20,6 +20,7 @@ variable "okta_scopes" {
   default = [
     "okta.users.manage",
     "okta.groups.manage",
+    "okta.apps.manage",
   ]
 }
 
@@ -33,4 +34,10 @@ variable "okta_private_key_id" {
   description = "Optional key id (kid) of the registered public key. Leave null to let Okta match by key material."
   type        = string
   default     = null
+}
+
+variable "aws_app_id" {
+  description = "Okta application id (0oa...) of the AWS IAM Identity Center integration app. Assigning the aws-developers group to this app is what puts its members in scope for provisioning to AWS. Empty disables the assignment."
+  type        = string
+  default     = ""
 }
