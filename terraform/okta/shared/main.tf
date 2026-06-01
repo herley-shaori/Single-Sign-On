@@ -26,6 +26,13 @@ resource "okta_group" "aws_developers" {
   description = "AWS developers group (managed by terraform; source of truth)"
 }
 
+# --- Group: azure-developers -----------------------------------------------
+# Same shape as aws-developers; cloud-prefixed group for the Azure target.
+resource "okta_group" "azure_developers" {
+  name        = "azure-developers"
+  description = "Azure developers group (managed by terraform; source of truth)"
+}
+
 # --- User: alice -----------------------------------------------------------
 resource "okta_user" "alice" {
   first_name = "Alice"   # required by SCIM -> downstream
@@ -37,6 +44,12 @@ resource "okta_user" "alice" {
 # alice is a member of the aws-developers group.
 resource "okta_group_memberships" "aws_developers_members" {
   group_id = okta_group.aws_developers.id
+  users    = [okta_user.alice.id]
+}
+
+# the SAME alice is also a member of azure-developers (no new user created).
+resource "okta_group_memberships" "azure_developers_members" {
+  group_id = okta_group.azure_developers.id
   users    = [okta_user.alice.id]
 }
 
