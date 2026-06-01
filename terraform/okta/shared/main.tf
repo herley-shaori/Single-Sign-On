@@ -20,7 +20,7 @@
 # Okta groups carry only name + description (no email attribute). The NAME is
 # the contract key downstream (e.g. AWS matches the SCIM group by this name).
 # Cloud-prefixed so each target gets its own group (this one is for AWS; on
-# the Google side the analogous group would be aws-developers@catatancloud.dev).
+# the Google side the analogous group would be aws-developers@<domain>).
 resource "okta_group" "aws_developers" {
   name        = "aws-developers"
   description = "AWS developers group (managed by terraform; source of truth)"
@@ -30,8 +30,8 @@ resource "okta_group" "aws_developers" {
 resource "okta_user" "alice" {
   first_name = "Alice"   # required by SCIM -> downstream
   last_name  = "Pratama" # required by SCIM -> downstream
-  login      = "alice@catatancloud.dev"
-  email      = "alice@catatancloud.dev"
+  login      = "alice@${var.okta_user_email_domain}"
+  email      = "alice@${var.okta_user_email_domain}"
 }
 
 # alice is a member of the aws-developers group.

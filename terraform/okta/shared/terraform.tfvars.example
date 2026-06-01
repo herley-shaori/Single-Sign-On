@@ -5,6 +5,8 @@ okta_org_name  = "trial-000000"          # subdomain only, no ".okta.com"
 okta_base_url  = "okta.com"              # "oktapreview.com" for preview orgs
 okta_client_id = "0oaXXXXXXXXXXXXXXXXX"   # OAuth service app (client) ID
 
+okta_user_email_domain = "example.com"   # login/email domain for users here
+
 # Scopes must also be GRANTED to the service app in the Okta Admin console
 # (Applications -> the app -> Okta API Scopes). The .manage scopes include read.
 okta_scopes = [

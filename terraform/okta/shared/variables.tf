@@ -36,6 +36,11 @@ variable "okta_private_key_id" {
   default     = null
 }
 
+variable "okta_user_email_domain" {
+  description = "Email/login domain for users defined in this module. Operator-specific, so kept in git-ignored tfvars (keeps the real domain out of the tracked, public config)."
+  type        = string
+}
+
 variable "aws_app_id" {
   description = "Okta application id (0oa...) of the AWS IAM Identity Center integration app. Assigning the aws-developers group to this app is what puts its members in scope for provisioning to AWS. Empty disables the assignment."
   type        = string
