@@ -33,6 +33,13 @@ resource "okta_group" "azure_developers" {
   description = "Azure developers group (managed by terraform; source of truth)"
 }
 
+# --- Group: gcp-developers -------------------------------------------------
+# Same shape; cloud-prefixed group for the GCP / Google Workspace target.
+resource "okta_group" "gcp_developers" {
+  name        = "gcp-developers"
+  description = "GCP developers group (managed by terraform; source of truth)"
+}
+
 # --- User: alice -----------------------------------------------------------
 resource "okta_user" "alice" {
   first_name = "Alice"   # required by SCIM -> downstream
@@ -50,6 +57,12 @@ resource "okta_group_memberships" "aws_developers_members" {
 # the SAME alice is also a member of azure-developers (no new user created).
 resource "okta_group_memberships" "azure_developers_members" {
   group_id = okta_group.azure_developers.id
+  users    = [okta_user.alice.id]
+}
+
+# the SAME alice is also a member of gcp-developers.
+resource "okta_group_memberships" "gcp_developers_members" {
+  group_id = okta_group.gcp_developers.id
   users    = [okta_user.alice.id]
 }
 
