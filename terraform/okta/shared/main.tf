@@ -84,6 +84,14 @@ resource "okta_app_group_assignment" "azure_developers_to_azure" {
   group_id = okta_group.azure_developers.id
 }
 
+# Assign the gcp-developers GROUP to the Google / GCP app, so its members are
+# in scope for provisioning to Google Workspace.
+resource "okta_app_group_assignment" "gcp_developers_to_gcp" {
+  count    = var.gcp_app_id == "" ? 0 : 1
+  app_id   = var.gcp_app_id
+  group_id = okta_group.gcp_developers.id
+}
+
 # --- Example: a user --------------------------------------------------------
 # resource "okta_user" "example_user" {
 #   first_name = "Example"          # required by SCIM -> downstream

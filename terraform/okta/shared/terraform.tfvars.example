@@ -27,3 +27,7 @@ aws_app_id = "0oaXXXXXXXXXXXXXXXXX"
 # Okta app id (0oa...) of the Azure / Office 365 integration app, so the
 # azure-developers group can be assigned to it. Leave "" to skip.
 azure_app_id = "0oaXXXXXXXXXXXXXXXXX"
+
+# Okta app id (0oa...) of the Google / GCP integration app, so the
+# gcp-developers group can be assigned to it. Leave "" to skip.
+gcp_app_id = "0oaXXXXXXXXXXXXXXXXX"

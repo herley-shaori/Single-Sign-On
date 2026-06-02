@@ -52,3 +52,9 @@ variable "azure_app_id" {
   type        = string
   default     = ""
 }
+
+variable "gcp_app_id" {
+  description = "Okta application id (0oa...) of the Google / GCP integration app. Assigning the gcp-developers group to this app puts its members in scope for provisioning to Google Workspace. Empty disables the assignment."
+  type        = string
+  default     = ""
+}
