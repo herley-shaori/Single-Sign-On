@@ -2,7 +2,8 @@ sa_credentials_file     = "sa.json"
 impersonated_user_email = "admin@example.com"
 gcp_project_id          = "your-gcp-project-id"
 
-developers_emails = [
-  "user1@example.com",
-  "user2@example.com",
-]
+# GCP Organization ID (numeric) — org-level IAM applies to all projects.
+gcp_org_id = "000000000000"
+
+# Email of the Google group (provisioned from Okta as gcp-developers).
+gcp_developers_group_email = "gcp-developers@example.com"

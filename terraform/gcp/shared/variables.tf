@@ -10,12 +10,16 @@ variable "impersonated_user_email" {
 }
 
 variable "gcp_project_id" {
-  description = "GCP project ID used as the scope for project-level IAM bindings (google_project_iam_member). Switch to org-level resources when an Organization exists."
+  description = "GCP project ID (used by the google provider as the default/quota project)."
   type        = string
 }
 
-variable "developers_emails" {
-  description = "List of user email addresses to grant the 'developers' role mapping (roles/storage.admin at project scope)."
-  type        = list(string)
-  default     = []
+variable "gcp_org_id" {
+  description = "GCP Organization ID (numeric) to bind org-level IAM on, so access applies to ALL projects in the org."
+  type        = string
+}
+
+variable "gcp_developers_group_email" {
+  description = "Email of the Google group (provisioned from Okta as gcp-developers) to grant GCS access. Operator-specific, kept in git-ignored tfvars."
+  type        = string
 }

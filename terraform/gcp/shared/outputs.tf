@@ -1,7 +1,4 @@
-output "developers_iam_members" {
-  value = {
-    for k, m in google_project_iam_member.developers_storage_admin :
-    k => m.id
-  }
-  description = "Map of developer email -> IAM member binding ID (project-level)"
+output "developers_storage_admin_binding" {
+  value       = google_organization_iam_member.gcp_developers_storage_admin.id
+  description = "Org-level IAM binding id granting the gcp-developers group roles/storage.admin across all projects"
 }

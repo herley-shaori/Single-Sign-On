@@ -27,19 +27,14 @@ locals {
 # target account.
 locals {
   permission_sets = {
-    developers = {
-      name                = "developers"
-      description         = "EC2 full access for the developers group (managed by terraform)"
-      session_duration    = "PT8H"
-      managed_policy_arns = ["arn:aws:iam::aws:policy/AmazonEC2FullAccess"]
-      group_names         = ["developers"]
-    }
-    data_scientists = {
-      name                = "data_scientists"
-      description         = "S3 full access for the data_scientists group (managed by terraform)"
+    # alice gets S3 full access via the aws-developers group, which is
+    # SCIM-provisioned into Identity Center from Okta (source of truth).
+    aws_developers = {
+      name                = "aws-developers"
+      description         = "S3 full access for the aws-developers group (managed by terraform)"
       session_duration    = "PT8H"
       managed_policy_arns = ["arn:aws:iam::aws:policy/AmazonS3FullAccess"]
-      group_names         = ["data_scientists"]
+      group_names         = ["aws-developers"]
     }
   }
 

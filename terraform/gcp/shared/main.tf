@@ -1,28 +1,24 @@
 # =========================================================================
-# Google Workspace + GCP - SHARED (tenant-level, not per environment)
+# GCP - SHARED (tenant-level, not per environment)
 #
-# Manages Workspace users + GCP project-level IAM bindings for them.
-# Users are intended to come from SCIM sync going forward; only Damian is
-# explicitly managed here because he was provisioned before SCIM was
-# wired up.
+# Authorization only. Identities (users/groups) come from Okta (source of
+# truth) provisioned into Google Workspace; this module does not create them.
 # =========================================================================
 
-# --- IAM: 'developers' role mapping (project-level) -----------------------
-# Members of the 'developers' role get full Cloud Storage access on the
-# target project. Bind at project level here; switch to organization-level
-# binding once a GCP Organization exists for your domain and the SA has
-# Organization IAM Admin permission.
+# --- IAM: GCS full access for gcp-developers across ALL projects ----------
+# Organization-level binding => inherited by EVERY project in the org, i.e.
+# "all projects". The principal is the gcp-developers GROUP, which is
+# provisioned into Google Workspace from Okta as gcp-developers@<domain>;
+# members (alice) inherit the access. The binding is inert until that Google
+# group actually exists.
 #
-# Emails are passed via var.developers_emails (tfvars-local, never tracked).
-# They must exist as Google identities (Workspace users or otherwise)
-# before the binding actually grants access. For SCIM-provisioned users,
-# the email is created on the Workspace side first; this binding then
-# references them by email and activates automatically.
-
-resource "google_project_iam_member" "developers_storage_admin" {
-  for_each = toset(var.developers_emails)
-
-  project = var.gcp_project_id
-  role    = "roles/storage.admin"
-  member  = "user:${each.key}"
+# Prerequisites for apply:
+#   - a GCP Organization (var.gcp_org_id), and
+#   - the service account holding Organization-level IAM permission
+#     (e.g. roles/resourcemanager.organizationAdmin or a custom role that can
+#     set org IAM policy).
+resource "google_organization_iam_member" "gcp_developers_storage_admin" {
+  org_id = var.gcp_org_id
+  role   = "roles/storage.admin"
+  member = "group:${var.gcp_developers_group_email}"
 }
