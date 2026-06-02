@@ -14,11 +14,6 @@ variable "gcp_project_id" {
   type        = string
 }
 
-variable "gcp_org_id" {
-  description = "GCP Organization ID (numeric) to bind org-level IAM on, so access applies to ALL projects in the org."
-  type        = string
-}
-
 variable "gcp_developers_group_email" {
   description = "Email of the Google group (provisioned from Okta as gcp-developers) to grant GCS access. Operator-specific, kept in git-ignored tfvars."
   type        = string
